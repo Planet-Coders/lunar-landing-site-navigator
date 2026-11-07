@@ -1,0 +1,231 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { GitCompare, Radar } from "lucide-react";
+import { defaultWindow } from "@/lib/dates";
+import { LANDING_SITES } from "@/lib/sites";
+import type { ComparisonMode, EvaluationResult } from "@/lib/types";
+import ScenarioPane, { type ScenarioConfig } from "./ScenarioPane";
+
+async function fetchEvaluation(config: ScenarioConfig): Promise<EvaluationResult> {
+  const response = await fetch("/api/evaluations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      siteId: config.siteId,
+      startTime: config.startTime,
+      stopTime: config.stopTime,
+      stepSize: config.stepSize,
+    }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error ?? "Evaluation failed");
+  }
+  return payload as EvaluationResult;
+}
+
+export default function ComparisonView() {
+  const window = defaultWindow();
+  const [mode, setMode] = useState<ComparisonMode>("sites");
+  const [left, setLeft] = useState<ScenarioConfig>({
+    label: "Scenario A",
+    siteId: LANDING_SITES[0].id,
+    startTime: window.startTime,
+    stopTime: window.stopTime,
+    stepSize: "2 h",
+  });
+  const [right, setRight] = useState<ScenarioConfig>({
+    label: "Scenario B",
+    siteId: LANDING_SITES[3].id,
+    startTime: window.startTime,
+    stopTime: window.stopTime,
+    stepSize: "2 h",
+  });
+  const [leftResult, setLeftResult] = useState<EvaluationResult | null>(null);
+  const [rightResult, setRightResult] = useState<EvaluationResult | null>(null);
+  const [leftError, setLeftError] = useState<string | null>(null);
+  const [rightError, setRightError] = useState<string | null>(null);
+  const [leftLoading, setLeftLoading] = useState(false);
+  const [rightLoading, setRightLoading] = useState(false);
+  const [leftIndex, setLeftIndex] = useState(0);
+  const [rightIndex, setRightIndex] = useState(0);
+  const [syncScrub, setSyncScrub] = useState(true);
+
+  const run = useCallback(async () => {
+    setLeftLoading(true);
+    setRightLoading(true);
+    setLeftError(null);
+    setRightError(null);
+
+    const rightConfig =
+      mode === "sites"
+        ? { ...right, startTime: left.startTime, stopTime: left.stopTime, stepSize: left.stepSize }
+        : { ...right, siteId: left.siteId, stepSize: left.stepSize };
+
+    const [a, b] = await Promise.allSettled([
+      fetchEvaluation({ ...left, stepSize: left.stepSize }),
+      fetchEvaluation(rightConfig),
+    ]);
+
+    if (a.status === "fulfilled") {
+      setLeftResult(a.value);
+      setLeftIndex(0);
+    } else {
+      setLeftResult(null);
+      setLeftError(a.reason instanceof Error ? a.reason.message : "Left pane failed");
+    }
+
+    if (b.status === "fulfilled") {
+      setRightResult(b.value);
+      setRightIndex(0);
+    } else {
+      setRightResult(null);
+      setRightError(b.reason instanceof Error ? b.reason.message : "Right pane failed");
+    }
+
+    setLeftLoading(false);
+    setRightLoading(false);
+  }, [left, right, mode]);
+
+  const didAutoRun = useRef(false);
+  useEffect(() => {
+    if (didAutoRun.current) return;
+    didAutoRun.current = true;
+    void run();
+  }, [run]);
+
+  const onLeftIndex = useCallback(
+    (index: number) => {
+      setLeftIndex(index);
+      if (syncScrub) setRightIndex(index);
+    },
+    [syncScrub],
+  );
+  const onRightIndex = useCallback(
+    (index: number) => {
+      setRightIndex(index);
+      if (syncScrub) setLeftIndex(index);
+    },
+    [syncScrub],
+  );
+
+  const delta = useMemo(() => {
+    const a = leftResult?.records[leftIndex];
+    const b = rightResult?.records[rightIndex];
+    if (!a || !b) return null;
+    const sun = (a.sun.elevation ?? 0) - (b.sun.elevation ?? 0);
+    const earth = (a.earth.elevation ?? 0) - (b.earth.elevation ?? 0);
+    return { sun, earth };
+  }, [leftResult, rightResult, leftIndex, rightIndex]);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="hud-panel flex flex-col gap-3 rounded-xl p-4 xl:flex-row xl:items-end xl:justify-between">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-cyan-200/60">Comparison mode</p>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setMode("sites")}
+              className={`rounded-md border px-3 py-2 text-xs uppercase tracking-[0.16em] ${
+                mode === "sites"
+                  ? "border-hud-cyan bg-cyan-400/10 text-hud-cyan"
+                  : "border-cyan-300/20 text-cyan-100/60"
+              }`}
+            >
+              Site A vs Site B
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("dates")}
+              className={`rounded-md border px-3 py-2 text-xs uppercase tracking-[0.16em] ${
+                mode === "dates"
+                  ? "border-hud-amber bg-amber-400/10 text-hud-amber"
+                  : "border-cyan-300/20 text-cyan-100/60"
+              }`}
+            >
+              Date 1 vs Date 2
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-cyan-100/70">
+            <input
+              type="checkbox"
+              checked={syncScrub}
+              onChange={(event) => setSyncScrub(event.target.checked)}
+            />
+            Sync scrubbers
+          </label>
+          <select
+            value={left.stepSize}
+            onChange={(event) => {
+              setLeft((prev) => ({ ...prev, stepSize: event.target.value }));
+              setRight((prev) => ({ ...prev, stepSize: event.target.value }));
+            }}
+            className="rounded-md border border-cyan-300/25 bg-black/40 px-2 py-2 text-xs"
+          >
+            <option value="1 h">Step 1 h</option>
+            <option value="2 h">Step 2 h</option>
+            <option value="6 h">Step 6 h</option>
+            <option value="12 h">Step 12 h</option>
+            <option value="1 d">Step 1 d</option>
+          </select>
+          <button
+            type="button"
+            onClick={run}
+            disabled={leftLoading || rightLoading}
+            className="inline-flex shrink-0 items-center gap-2 rounded-md bg-hud-cyan px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-black shadow-hud disabled:opacity-50"
+          >
+            <Radar size={14} /> Evaluate
+          </button>
+        </div>
+      </div>
+
+      {delta && (
+        <div className="grid grid-cols-2 gap-3 text-xs">
+          <div className="hud-panel rounded-xl px-4 py-3">
+            <GitCompare size={14} className="mb-1 text-amber-200" />
+            Δ solar el {delta.sun >= 0 ? "+" : ""}
+            {delta.sun.toFixed(2)}°
+          </div>
+          <div className="hud-panel rounded-xl px-4 py-3">
+            <GitCompare size={14} className="mb-1 text-hud-cyan" />
+            Δ Earth el {delta.earth >= 0 ? "+" : ""}
+            {delta.earth.toFixed(2)}°
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <ScenarioPane
+          config={left}
+          onChange={setLeft}
+          result={leftResult}
+          loading={leftLoading}
+          error={leftError}
+          index={leftIndex}
+          onIndexChange={onLeftIndex}
+        />
+        <ScenarioPane
+          config={{
+            ...right,
+            siteId: mode === "dates" ? left.siteId : right.siteId,
+            startTime: mode === "sites" ? left.startTime : right.startTime,
+            stopTime: mode === "sites" ? left.stopTime : right.stopTime,
+            label: mode === "dates" ? "Scenario B · Date 2" : "Scenario B",
+          }}
+          onChange={setRight}
+          result={rightResult}
+          loading={rightLoading}
+          error={rightError}
+          index={rightIndex}
+          onIndexChange={onRightIndex}
+          lockDates={mode === "sites"}
+          lockSite={mode === "dates"}
+        />
+      </div>
+    </div>
+  );
+}

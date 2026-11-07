@@ -49,6 +49,8 @@ export default function TimelineScrubber({
         </button>
         <input
           type="range"
+          aria-label="Ephemeris timeline"
+          aria-valuetext={current?.date ?? "No data"}
           min={0}
           max={max}
           value={Math.min(index, max)}

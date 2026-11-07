@@ -40,6 +40,11 @@ export function formatSigned(value: number | null, digits = 3, suffix = ""): str
   return `${value.toFixed(digits)}${suffix}`;
 }
 
+/**
+ * Az/El (azimuth clockwise from north) to a y-up scene frame where north is
+ * -z and east is +x. Seen from above this keeps N→E→S→W clockwise, matching
+ * the compass markers in the horizon view.
+ */
 export function azElToCartesian(
   azimuthDeg: number,
   elevationDeg: number,
@@ -49,7 +54,7 @@ export function azElToCartesian(
   const el = (elevationDeg * Math.PI) / 180;
   const x = radius * Math.cos(el) * Math.sin(az);
   const y = radius * Math.sin(el);
-  const z = radius * Math.cos(el) * Math.cos(az);
+  const z = -radius * Math.cos(el) * Math.cos(az);
   return [x, y, z];
 }
 

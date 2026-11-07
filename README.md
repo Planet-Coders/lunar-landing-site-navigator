@@ -25,7 +25,7 @@ Pick two sites and a date range, set a horizon mask, and the app charts Sun and 
 
 The preset catalog contains center-pixel reference points from 13 NASA GSFC regional LOLA DEMs. These are **not official NASA-selected landing coordinates**. Each point's name, source grid cell, height and provenance are in [`data/sites.json`](data/sites.json). The former uncited catalog and LCROSS impact claim have been removed.
 
-Choose **Custom coordinates** in either site's picker to enter latitude (-90 to 90°) and east-positive longitude (-180 to 360°). Heights are sampled from the global LOLA grid at **0.25° spacing (~7.6 km north–south)**. This is a coarse estimate; small obstructions, local slopes, terrain shadows and landing hazards are not resolved. The regional presets use finer 5 m grids, which themselves include interpolation and measurement uncertainty.
+Arbitrary coordinates are supported by the API: send `siteId=custom` with a latitude (-90 to 90°) and east-positive longitude (-180 to 360°). The main page's Site A/B dropdowns currently list only the 13 presets; the earlier comparison view (`ComparisonView.tsx`, not on the page) still has a Custom coordinates picker. Heights are sampled from the global LOLA grid at **0.25° spacing (~7.6 km north–south)**. This is a coarse estimate; small obstructions, local slopes, terrain shadows and landing hazards are not resolved. The regional presets use finer 5 m grids, which themselves include interpolation and measurement uncertainty.
 
 ## Tech stack
 
@@ -52,6 +52,7 @@ No API keys are needed, because JPL Horizons is a public API. The app needs inte
 | `npm run build` | Production build                |
 | `npm start`     | Serve the production build      |
 | `npm run lint`  | Run ESLint (`next lint`)        |
+| `npm test`      | Run the offline unit tests      |
 
 ## API
 
@@ -70,6 +71,14 @@ curl "http://localhost:3000/api/evaluations?siteId=shackleton-rim&startTime=2026
 ```
 
 Upstream exports are cached for 6 hours per server process, retaining original retrieval timestamps. Requests to Horizons are sent one at a time. Responses include source URLs, API version, lunar reference model, original retrieval timestamps and SHA-256 hashes. Malformed data, missing required angles and misaligned time series are rejected rather than filled with demo values.
+
+Horizons is called with Node's built-in `fetch` (the `undici` dependency was removed), with a 30 s timeout per request. The route allows up to 60 s (`maxDuration = 60`) on hosts such as Vercel.
+
+## Deployment
+
+The app deploys to Vercel as a standard Next.js project with no environment variables. Run `npm run build` locally first to catch errors.
+
+**Known issue:** on the live Vercel deployment, `/api/evaluations` currently returns **502 "fetch failed"** when the server calls JPL Horizons, so the charts and table stay empty there. It works locally. The cause has not been fixed yet; see [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md#known-issues) for details and what to check.
 
 ## Project structure
 
@@ -91,19 +100,26 @@ lib/
   custom-location.ts       Global LOLA height lookup for custom coordinates
   ephemeris.ts              Az/El and RA/Dec maths, formatting helpers
   windows.ts                Horizon-mask window maths (sunlit / Earth-visible %, longest gaps)
-  sites.ts                  Candidate landing sites
+  sites.ts                  Candidate landing sites (loads data/sites.json)
   dates.ts, types.ts        Date parsing and shared types
+data/                       NASA reference points, global LOLA heights, map checksums
+public/data/                Globe colour and height textures
+scripts/refresh-nasa-data.py  Regenerates the NASA-derived data files
+tests/                      Offline tests with archived Horizons responses
+docs/DOCUMENTATION.md       Full project documentation
 ```
 
 ## Recent changes
 
 - Fixed the horizon view, which had North and South swapped, plus small fixes (missing-data deltas, out-of-date results notice, control labels). See PR #2.
 - Rebuilt the main page to match the project wireframe: Site A/B, date range and horizon mask across the top, the south pole map on the left, Sun and Earth elevation charts and the Power & Comms comparison table on the right, and a Geometric Visibility Only footer.
+- Replaced the uncited site catalog with NASA GSFC LOLA reference points, bundled NASA LRO/LOLA globe maps, and added custom coordinates to the API (PR #3).
+- Removed `undici` in favour of native `fetch` to fix a missing-module build error on Vercel, and raised the API route timeout to 60 s.
 
-## Data source
+## Documentation and data sources
 
-See [DATA_SOURCES.md](DATA_SOURCES.md) for datasets, coordinate/height conventions, limitations, refresh instructions and validation. Run `npm test`, `npm run lint` and `npm run build` to validate the code. Tests include archived real NASA Horizons responses; no NASA network access is needed for the unit suite.
+See [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md) for architecture, features, setup, deployment and known issues, and [DATA_SOURCES.md](DATA_SOURCES.md) for datasets, coordinate/height conventions, limitations, refresh instructions and validation. Run `npm test`, `npm run lint` and `npm run build` to validate the code. Tests include archived real NASA Horizons responses; no NASA network access is needed for the unit suite.
 
 ## AI assistance
 
-This project was built with help from Claude, an AI assistant made by Anthropic, used through Claude Code. Claude reviewed the codebase and suggested enhancements, fixed the horizon-view bug, built the wireframe layout (charts, comparison table, horizon mask), and drafted this README. A person reviewed and tested every change before it was merged.
+This project was built with help from Claude, an AI assistant made by Anthropic, used through Claude Code. Claude reviewed the codebase and suggested enhancements, fixed the horizon-view bug, built the wireframe layout (charts, comparison table, horizon mask), and drafted this README and the project documentation. A person reviewed and tested every change before it was merged.

@@ -30,6 +30,16 @@ export default function HomePage() {
         </div>
       </header>
       <ComparisonView />
+      <footer className="mt-8 border-t border-cyan-300/15 pt-4 text-xs text-cyan-100/70">
+        <p className="font-semibold uppercase tracking-[0.2em] text-hud-amber">
+          Geometric visibility only
+        </p>
+        <p className="mt-1 max-w-3xl">
+          Sun and Earth visibility is judged from elevation above the local horizontal plane
+          (JPL Horizons, airless). Terrain shadowing, local horizon masks and the size of the
+          solar and Earth discs are not modelled, so real sunlight and line-of-sight can differ.
+        </p>
+      </footer>
     </main>
   );
 }

@@ -18,6 +18,11 @@ const LunarGlobe = dynamic(() => import("./LunarGlobe"), {
   ),
 });
 
+function formatDelta(value: number | null): string {
+  if (value === null) return "—";
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}°`;
+}
+
 async function fetchEvaluation(config: ScenarioConfig): Promise<EvaluationResult> {
   const response = await fetch("/api/evaluations", {
     method: "POST",
@@ -34,6 +39,18 @@ async function fetchEvaluation(config: ScenarioConfig): Promise<EvaluationResult
     throw new Error(payload.error ?? "Evaluation failed");
   }
   return payload as EvaluationResult;
+}
+
+/** True when a result no longer matches the inputs shown in its pane. */
+function isStale(result: EvaluationResult | null, config: ScenarioConfig): boolean {
+  if (!result) return false;
+  const norm = (t: string) => t.trim().replace("T", " ");
+  return (
+    result.site.id !== config.siteId ||
+    result.startTime !== norm(config.startTime) ||
+    result.stopTime !== norm(config.stopTime) ||
+    result.stepSize !== config.stepSize.trim()
+  );
 }
 
 export default function ComparisonView() {
@@ -133,13 +150,26 @@ export default function ComparisonView() {
     [syncScrub],
   );
 
+  // What the right pane actually evaluates, given the comparison mode.
+  const rightEffective: ScenarioConfig = {
+    ...right,
+    siteId: mode === "dates" ? left.siteId : right.siteId,
+    startTime: mode === "sites" ? left.startTime : right.startTime,
+    stopTime: mode === "sites" ? left.stopTime : right.stopTime,
+    stepSize: left.stepSize,
+    label: mode === "dates" ? "Scenario B · Date 2" : "Scenario B",
+  };
+
   const delta = useMemo(() => {
     const a = leftResult?.records[leftIndex];
     const b = rightResult?.records[rightIndex];
     if (!a || !b) return null;
-    const sun = (a.sun.elevation ?? 0) - (b.sun.elevation ?? 0);
-    const earth = (a.earth.elevation ?? 0) - (b.earth.elevation ?? 0);
-    return { sun, earth };
+    const diff = (x: number | null, y: number | null) =>
+      x === null || y === null ? null : x - y;
+    return {
+      sun: diff(a.sun.elevation, b.sun.elevation),
+      earth: diff(a.earth.elevation, b.earth.elevation),
+    };
   }, [leftResult, rightResult, leftIndex, rightIndex]);
 
   return (
@@ -182,6 +212,7 @@ export default function ComparisonView() {
             Sync scrubbers
           </label>
           <select
+            aria-label="Ephemeris step size"
             value={left.stepSize}
             onChange={(event) => {
               setLeft((prev) => ({ ...prev, stepSize: event.target.value }));
@@ -247,13 +278,11 @@ export default function ComparisonView() {
         <div className="grid grid-cols-2 gap-3 text-xs">
           <div className="hud-panel rounded-xl px-4 py-3">
             <GitCompare size={14} className="mb-1 text-amber-200" />
-            Δ solar el {delta.sun >= 0 ? "+" : ""}
-            {delta.sun.toFixed(2)}°
+            Δ solar el {formatDelta(delta.sun)}
           </div>
           <div className="hud-panel rounded-xl px-4 py-3">
             <GitCompare size={14} className="mb-1 text-hud-cyan" />
-            Δ Earth el {delta.earth >= 0 ? "+" : ""}
-            {delta.earth.toFixed(2)}°
+            Δ Earth el {formatDelta(delta.earth)}
           </div>
         </div>
       )}
@@ -267,15 +296,10 @@ export default function ComparisonView() {
           error={leftError}
           index={leftIndex}
           onIndexChange={onLeftIndex}
+          stale={isStale(leftResult, left)}
         />
         <ScenarioPane
-          config={{
-            ...right,
-            siteId: mode === "dates" ? left.siteId : right.siteId,
-            startTime: mode === "sites" ? left.startTime : right.startTime,
-            stopTime: mode === "sites" ? left.stopTime : right.stopTime,
-            label: mode === "dates" ? "Scenario B · Date 2" : "Scenario B",
-          }}
+          config={rightEffective}
           onChange={setRight}
           result={rightResult}
           loading={rightLoading}
@@ -284,6 +308,7 @@ export default function ComparisonView() {
           onIndexChange={onRightIndex}
           lockDates={mode === "sites"}
           lockSite={mode === "dates"}
+          stale={isStale(rightResult, rightEffective)}
         />
       </div>
     </div>

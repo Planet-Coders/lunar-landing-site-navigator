@@ -34,6 +34,7 @@ export default function ScenarioPane({
   onIndexChange,
   lockDates,
   lockSite,
+  stale,
 }: {
   config: ScenarioConfig;
   onChange: (next: ScenarioConfig) => void;
@@ -44,6 +45,8 @@ export default function ScenarioPane({
   onIndexChange: (index: number) => void;
   lockDates?: boolean;
   lockSite?: boolean;
+  /** The shown result was computed for different inputs than the ones selected. */
+  stale?: boolean;
 }) {
   const site: LandingSite | undefined = LANDING_SITES.find((item) => item.id === config.siteId);
   const records = result?.records ?? [];
@@ -112,6 +115,19 @@ export default function ScenarioPane({
           </div>
         )}
       </div>
+
+      {stale && !loading && (
+        <div
+          role="status"
+          className="flex items-start gap-2 rounded-xl border border-amber-400/40 bg-amber-950/40 p-3 text-sm text-amber-100"
+        >
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <span>
+            Out of date: these results are for {result?.site.name} ({result?.startTime} to{" "}
+            {result?.stopTime}, step {result?.stepSize}). Press Evaluate to update.
+          </span>
+        </div>
+      )}
 
       {error && (
         <div className="flex items-start gap-2 rounded-xl border border-rose-400/40 bg-rose-950/40 p-3 text-sm text-rose-100">

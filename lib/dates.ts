@@ -18,18 +18,31 @@ export const HORIZONS_DATE_RE =
 
 export function parseHorizonsDate(date: string): number {
   const match = date.match(HORIZONS_DATE_RE);
-  if (!match) return Number.NaN;
+  if (!match || match[0] !== date) return Number.NaN;
   const month = MONTHS[match[2]];
   if (month === undefined) return Number.NaN;
   const seconds = match[6] ? Number(match[6]) : 0;
-  return Date.UTC(
+  const result = Date.UTC(
     Number(match[1]),
     month,
     Number(match[3]),
     Number(match[4]),
     Number(match[5]),
-    Math.floor(seconds),
+    Math.floor(seconds), Math.round((seconds % 1) * 1000),
   );
+  const d = new Date(result);
+  if (Number(match[1]) < 100 || d.getUTCMonth() !== month || d.getUTCDate() !== Number(match[3]) || d.getUTCHours() !== Number(match[4]) || d.getUTCMinutes() !== Number(match[5]) || seconds >= 60) return Number.NaN;
+  return result;
+}
+
+/** Calendar inputs are UTC, regardless of the machine/browser timezone. */
+export function normalizeUtcTime(value: string): string {
+  const match = value.trim().match(/^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2})(?::00)?Z?)?$/);
+  if (!match) throw new Error("Invalid UTC calendar time");
+  const normalized = `${match[1]}T${match[2] ?? "00:00"}`;
+  const d = new Date(`${normalized}Z`);
+  if (!Number.isFinite(d.getTime()) || d.toISOString().slice(0, 16) !== normalized) throw new Error("Invalid UTC calendar time");
+  return normalized.replace("T", " ");
 }
 
 export function toInputDateTime(isoLike: string): string {

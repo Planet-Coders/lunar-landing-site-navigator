@@ -1,17 +1,12 @@
 "use client";
 
-import { Html, Line, OrbitControls, Stars } from "@react-three/drei";
+import { Html, Line, OrbitControls, useTexture } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CanvasTexture, Color, Group, SphereGeometry, SRGBColorSpace, Vector3 } from "three";
+import { Color, Group, RepeatWrapping, SRGBColorSpace, Vector3 } from "three";
 import { LANDING_SITES } from "@/lib/sites";
-import {
-  POLAR_CAP_DEG,
-  latLonToVector,
-  paintMoonSurface,
-  paintSouthPolarCap,
-  polarCapUV,
-} from "@/lib/moon-surface";
+import { latLonToVector, MOON_RADIUS_KM } from "@/lib/moon-surface";
+import moonMaps from "@/data/moon-maps.json";
 import type { LandingSite } from "@/lib/types";
 
 const R = 1;
@@ -29,84 +24,32 @@ interface LunarGlobeProps {
   /** Called when a pin is clicked; the parent decides which slot it fills. */
   onSelectSite?: (siteId: string) => void;
   className?: string;
+  customA?: { latitude: number; longitude: number };
+  customB?: { latitude: number; longitude: number };
 }
 
 function MoonSurface() {
-  const textures = useMemo(() => {
-    const { color, height } = paintMoonSurface();
-    const map = new CanvasTexture(color);
+  const [map, bump] = useTexture(["/data/moon-color.png", "/data/moon-height.png"]);
+  useEffect(() => {
     map.colorSpace = SRGBColorSpace;
-    map.anisotropy = 8;
-    const bump = new CanvasTexture(height);
-    return { map, bump };
-  }, []);
-
-  useEffect(
-    () => () => {
-      textures.map.dispose();
-      textures.bump.dispose();
-    },
-    [textures],
-  );
-
+    for (const texture of [map, bump]) {
+      // NASA maps start at 180 W; our SphereGeometry starts at 90 W.
+      texture.wrapS = RepeatWrapping;
+      texture.offset.x = 0.25;
+      texture.anisotropy = 8;
+      texture.needsUpdate = true;
+    }
+  }, [map, bump]);
+  const heights = moonMaps.maps.find((item) => item.file === "/data/moon-height.png")!;
   return (
     <mesh>
       <sphereGeometry args={[R, 256, 192]} />
       <meshStandardMaterial
-        map={textures.map}
-        bumpMap={textures.bump}
-        bumpScale={4}
-        roughness={0.97}
-        metalness={0}
-      />
-    </mesh>
-  );
-}
-
-/**
- * High-resolution overlay for the south polar cap. An equirectangular texture
- * pinches into streaks at the pole, which is exactly where this map looks, so
- * the cap gets its own azimuthal texture and UVs.
- */
-function SouthPolarCap() {
-  const { geometry, map, bump } = useMemo(() => {
-    const cap = (POLAR_CAP_DEG * Math.PI) / 180;
-    const geo = new SphereGeometry(R * 1.0006, 256, 64, 0, Math.PI * 2, Math.PI - cap, cap);
-    const pos = geo.attributes.position;
-    const uv = geo.attributes.uv;
-    const v = new Vector3();
-    for (let i = 0; i < pos.count; i += 1) {
-      v.fromBufferAttribute(pos, i).normalize();
-      const [u, w] = polarCapUV(v.x, v.y, v.z);
-      uv.setXY(i, u, w);
-    }
-    uv.needsUpdate = true;
-    const canvases = paintSouthPolarCap();
-    const colorTex = new CanvasTexture(canvases.color);
-    colorTex.colorSpace = SRGBColorSpace;
-    colorTex.anisotropy = 8;
-    return { geometry: geo, map: colorTex, bump: new CanvasTexture(canvases.height) };
-  }, []);
-
-  useEffect(
-    () => () => {
-      geometry.dispose();
-      map.dispose();
-      bump.dispose();
-    },
-    [geometry, map, bump],
-  );
-
-  return (
-    <mesh geometry={geometry}>
-      <meshStandardMaterial
         map={map}
         bumpMap={bump}
-        bumpScale={4}
+        bumpScale={(heights.maxHeightKm! - heights.minHeightKm!) / MOON_RADIUS_KM}
         roughness={0.97}
         metalness={0}
-        transparent
-        depthWrite={false}
       />
     </mesh>
   );
@@ -161,7 +104,7 @@ function SitePin({
   slot,
   onSelect,
 }: {
-  site: LandingSite;
+  site: Pick<LandingSite, "id" | "name" | "latitude" | "longitude">;
   slot: SiteSlot | null;
   onSelect?: (siteId: string) => void;
 }) {
@@ -235,18 +178,18 @@ function SitePin({
  */
 const SOUTH_POLE_UP: [number, number, number] = [-Math.PI / 2, 0, 0];
 
-function Scene({ siteAId, siteBId, onSelectSite }: LunarGlobeProps) {
+function Scene({ siteAId, siteBId, onSelectSite, customA, customB }: LunarGlobeProps) {
   return (
     <>
       <ambientLight intensity={0.35} />
       {/* Low, grazing sun like the real polar lighting, so crater relief reads. */}
       <directionalLight position={[-3, 2.2, 1.2]} intensity={2.4} color="#fff6e5" />
       <directionalLight position={[2, -1, 3]} intensity={0.35} color="#9cc7ff" />
-      <Stars radius={60} depth={30} count={3000} factor={2.5} saturation={0} fade speed={0.3} />
       <group rotation={SOUTH_POLE_UP}>
         <MoonSurface />
-        <SouthPolarCap />
         <Graticule />
+        {customA && <SitePin site={{ id: "custom", name: "Custom Location A", ...customA }} slot="A" />}
+        {customB && <SitePin site={{ id: "custom", name: "Custom Location B", ...customB }} slot="B" />}
         {LANDING_SITES.map((site) => (
           <SitePin
             key={site.id}
@@ -268,7 +211,7 @@ function Scene({ siteAId, siteBId, onSelectSite }: LunarGlobeProps) {
   );
 }
 
-export default function LunarGlobe({ siteAId, siteBId, onSelectSite, className }: LunarGlobeProps) {
+export default function LunarGlobe({ siteAId, siteBId, onSelectSite, className, customA, customB }: LunarGlobeProps) {
   return (
     <div className={`relative overflow-hidden rounded-xl border border-cyan-300/20 bg-[#020205] ${className ?? ""}`}>
       <Canvas
@@ -278,10 +221,10 @@ export default function LunarGlobe({ siteAId, siteBId, onSelectSite, className }
           scene.background = new Color(0x020205);
         }}
       >
-        <Scene siteAId={siteAId} siteBId={siteBId} onSelectSite={onSelectSite} />
+        <Scene siteAId={siteAId} siteBId={siteBId} onSelectSite={onSelectSite} customA={customA} customB={customB} />
       </Canvas>
       <div className="pointer-events-none absolute bottom-3 left-3 text-[10px] uppercase tracking-[0.2em] text-cyan-200/50">
-        Drag to rotate · scroll to zoom · click a pin to select
+        NASA LRO/LOLA · illustrative lighting · drag to rotate · scroll to zoom
       </div>
     </div>
   );

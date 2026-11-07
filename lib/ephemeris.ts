@@ -6,7 +6,8 @@ export function hoursUntilFlagDrop(
   index: number,
   flag: "isDaylight" | "isEarthVisible",
 ): number | null {
-  if (!records[index]?.[flag]) return 0;
+  if (!records[index]) return null;
+  if (!records[index][flag]) return 0;
   const start = parseHorizonsDate(records[index].date);
   for (let i = index + 1; i < records.length; i += 1) {
     if (!records[i][flag]) {

@@ -1,73 +1,26 @@
 "use client";
 
-import { OrbitControls, Stars } from "@react-three/drei";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { OrbitControls } from "@react-three/drei";
+import { Canvas } from "@react-three/fiber";
+import { useMemo } from "react";
 import {
-  CanvasTexture,
   Color,
-  DirectionalLight,
-  Group,
-  Mesh,
-  RepeatWrapping,
   Vector3,
 } from "three";
-import { azElToCartesian, raDecToCartesian } from "@/lib/ephemeris";
+import { azElToCartesian } from "@/lib/ephemeris";
 import type { EphemerisSample } from "@/lib/types";
 
 const SKY_RADIUS = 36;
-const MOON_ANGULAR_DIAMETER_DEG = 0.5;
-const EARTH_ANGULAR_MULTIPLIER = 4;
-const SUN_VISUAL_SCALE = 3.8;
-
-function angularMeshRadius(angularDiameterDeg: number, distance: number) {
-  return distance * Math.tan(((angularDiameterDeg / 2) * Math.PI) / 180);
-}
-
-function makeRegolithTexture() {
-  const size = 256;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
-  ctx.fillStyle = "#1a1714";
-  ctx.fillRect(0, 0, size, size);
-  for (let i = 0; i < 4000; i += 1) {
-    const shade = 28 + Math.floor(Math.random() * 50);
-    ctx.fillStyle = `rgb(${shade},${shade - 4},${shade - 8})`;
-    ctx.fillRect(Math.random() * size, Math.random() * size, 1, 1);
-  }
-  const texture = new CanvasTexture(canvas);
-  texture.wrapS = RepeatWrapping;
-  texture.wrapT = RepeatWrapping;
-  texture.repeat.set(8, 8);
-  return texture;
-}
-
 function celestialPosition(body: EphemerisSample["sun"]): Vector3 {
-  if (body.azimuth !== null && body.elevation !== null) {
-    return new Vector3(...azElToCartesian(body.azimuth, body.elevation, SKY_RADIUS));
-  }
-  if (body.rightAscension !== null && body.declination !== null) {
-    return new Vector3(...raDecToCartesian(body.rightAscension, body.declination, SKY_RADIUS));
-  }
-  return new Vector3(0, -SKY_RADIUS, 0);
+  return new Vector3(...azElToCartesian(body.azimuth!, body.elevation!, SKY_RADIUS));
 }
 
+/** A reference horizontal plane, not a reconstruction of site terrain. */
 function Terrain() {
-  const texture = useMemo(() => makeRegolithTexture(), []);
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, 0, 0]}>
-      <planeGeometry args={[220, 220, 96, 96]} />
-      <meshStandardMaterial
-        map={texture ?? undefined}
-        color="#b7aea3"
-        roughness={0.92}
-        metalness={0.02}
-        displacementMap={texture ?? undefined}
-        displacementScale={0.55}
-      />
+      <planeGeometry args={[220, 220]} />
+      <meshStandardMaterial color="#b7aea3" roughness={0.92} metalness={0.02} />
     </mesh>
   );
 }
@@ -109,60 +62,21 @@ function Lander() {
   );
 }
 
-function CelestialBodies({ sample }: { sample: EphemerisSample | null }) {
-  const sunRef = useRef<Mesh>(null);
-  const earthRef = useRef<Mesh>(null);
-  const lightRef = useRef<DirectionalLight>(null);
-  const groupRef = useRef<Group>(null);
-  const sunTarget = useRef(new Vector3(20, 40, 10));
-  const earthTarget = useRef(new Vector3(-20, 8, 40));
-
-  const sunSize =
-    angularMeshRadius(MOON_ANGULAR_DIAMETER_DEG, SKY_RADIUS) * SUN_VISUAL_SCALE;
-  const earthSize =
-    angularMeshRadius(MOON_ANGULAR_DIAMETER_DEG * EARTH_ANGULAR_MULTIPLIER, SKY_RADIUS) *
-    SUN_VISUAL_SCALE;
-
-  if (sample) {
-    sunTarget.current.copy(celestialPosition(sample.sun));
-    earthTarget.current.copy(celestialPosition(sample.earth));
-  }
-
-  useFrame((_, delta) => {
-    const k = 1 - Math.exp(-delta * 4.2);
-    if (sunRef.current) {
-      sunRef.current.position.lerp(sunTarget.current, k);
-      if (lightRef.current) {
-        lightRef.current.position.copy(sunRef.current.position);
-      }
-    }
-    if (earthRef.current) {
-      earthRef.current.position.lerp(earthTarget.current, k);
-    }
-  });
-
+function CelestialBodies({ sample }: { sample: EphemerisSample }) {
+  const sun = useMemo(() => celestialPosition(sample.sun), [sample]);
+  const earth = useMemo(() => celestialPosition(sample.earth), [sample]);
+  // Actual full-disk angular diameters (arcsec), no visual enlargement.
+  const radius = (diameter: number) => SKY_RADIUS * Math.tan(diameter / 3600 * Math.PI / 360);
   return (
-    <group ref={groupRef}>
-      <mesh ref={sunRef}>
-        <sphereGeometry args={[Math.max(sunSize, 1.15), 24, 24]} />
+    <group>
+      <mesh position={sun}>
+        <sphereGeometry args={[radius(sample.sun.angularDiameterArcsec), 24, 24]} />
         <meshBasicMaterial color="#fff4c2" />
       </mesh>
-      <pointLight color="#ffe9a8" intensity={3.4} distance={120} />
-      <directionalLight
-        ref={lightRef}
-        color="#fff4d2"
-        intensity={(sample?.sun.elevation ?? -10) > 0 ? 2.6 : 0.22}
-        castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-      />
-      <mesh ref={earthRef}>
-        <sphereGeometry args={[Math.max(earthSize, 3.4), 32, 32]} />
-        <meshStandardMaterial
-          color="#6aa2ff"
-          emissive={new Color((sample?.earth.elevation ?? -10) > 0 ? "#1a4cad" : "#0a1224")}
-          roughness={0.4}
-        />
+      <directionalLight position={sun} color="#fff4d2" intensity={sample.sun.elevation! > 0 ? 2.6 : 0} castShadow />
+      <mesh position={earth}>
+        <sphereGeometry args={[radius(sample.earth.angularDiameterArcsec), 32, 32]} />
+        <meshStandardMaterial color="#6aa2ff" emissive={new Color("#0a1224")} roughness={0.4} />
       </mesh>
     </group>
   );
@@ -182,11 +96,10 @@ export default function Lunar3DCanvas({ sample }: { sample: EphemerisSample | nu
       >
         <ambientLight intensity={0.28} />
         <hemisphereLight args={["#8ea7d8", "#2c241c", 0.55]} />
-        <Stars radius={180} depth={40} count={4000} factor={3} saturation={0} fade speed={0.2} />
         <Terrain />
         <HorizonRing />
         <Lander />
-        <CelestialBodies sample={sample} />
+        {sample && <CelestialBodies sample={sample} />}
         <gridHelper args={[80, 20, "#1b3b55", "#101824"]} position={[0, 0.02, 0]} />
         <OrbitControls
           enablePan={false}
@@ -197,7 +110,7 @@ export default function Lunar3DCanvas({ sample }: { sample: EphemerisSample | nu
         />
       </Canvas>
       <div className="pointer-events-none absolute left-3 top-3 text-[10px] uppercase tracking-[0.24em] text-cyan-200/70">
-        Airless horizon · ICRF / AZ-EL
+        Reference plane · airless Az/El
       </div>
     </div>
   );

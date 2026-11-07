@@ -1,0 +1,418 @@
+[
+  {
+    "id": "shackleton-rim",
+    "name": "Shackleton Rim",
+    "latitude": -89.76674147712977,
+    "longitude": 188.10719091700346,
+    "altitude": 767.9786376953125,
+    "region": "NASA LOLA Site04",
+    "description": "Reference point at the center pixel of NASA LOLA Site04, not an official landing location. Geometric visibility only.",
+    "provenance": {
+      "agency": "NASA GSFC / LRO LOLA",
+      "product": "Site04",
+      "sourceSha256": "38ff70dbdf2f066c2cfa94a646c3a59d653ce7f6b4528b15fc1b43ee397ce758",
+      "url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site04/Site04_final_adj_5mpp_surf.tif",
+      "documentation": "https://pgda.gsfc.nasa.gov/products/78",
+      "citation": "https://doi.org/10.1016/j.pss.2020.105119",
+      "frame": "MOON_ME_DE421",
+      "referenceRadiusM": 1737400,
+      "verticalDatum": "meters above the 1737400 m reference sphere",
+      "selection": "center pixel (floor(width/2), floor(height/2)), zero instrument height",
+      "pixel": [
+        1600,
+        1600
+      ],
+      "gridSize": [
+        3200,
+        3200
+      ],
+      "eastingM": -997.5,
+      "northingM": -7002.5,
+      "pixelScaleM": 5
+    }
+  },
+  {
+    "id": "connecting-ridge",
+    "name": "Connecting Ridge",
+    "latitude": -89.46315775697248,
+    "longitude": 222.49801509237693,
+    "altitude": 1944.76708984375,
+    "region": "NASA LOLA Site01",
+    "description": "Reference point at the center pixel of NASA LOLA Site01, not an official landing location. Geometric visibility only.",
+    "provenance": {
+      "agency": "NASA GSFC / LRO LOLA",
+      "product": "Site01",
+      "sourceSha256": "3ba7b97cb00a2bcf21189c3aeb535f65afc21207154ab9f0d43c5bdc1f7e747e",
+      "url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site01/Site01_final_adj_5mpp_surf.tif",
+      "documentation": "https://pgda.gsfc.nasa.gov/products/78",
+      "citation": "https://doi.org/10.1016/j.pss.2020.105119",
+      "frame": "MOON_ME_DE421",
+      "referenceRadiusM": 1737400,
+      "verticalDatum": "meters above the 1737400 m reference sphere",
+      "selection": "center pixel (floor(width/2), floor(height/2)), zero instrument height",
+      "pixel": [
+        1600,
+        1600
+      ],
+      "gridSize": [
+        3200,
+        3200
+      ],
+      "eastingM": -10997.5,
+      "northingM": -12002.5,
+      "pixelScaleM": 5
+    }
+  },
+  {
+    "id": "connecting-ridge-ext",
+    "name": "Connecting Ridge Extension",
+    "latitude": -89.03247911621187,
+    "longitude": 257.9949225479719,
+    "altitude": 1178.582275390625,
+    "region": "NASA LOLA SL3",
+    "description": "Reference point at the center pixel of NASA LOLA SL3, not an official landing location. Geometric visibility only.",
+    "provenance": {
+      "agency": "NASA GSFC / LRO LOLA",
+      "product": "SL3",
+      "sourceSha256": "a18c153dab5c9e7e0b4d8a5f1547bd7ef5e31fba7dd1c3252d84060aebf0283b",
+      "url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/SL3/SL3_final_adj_5mpp_surf.tif",
+      "documentation": "https://pgda.gsfc.nasa.gov/products/78",
+      "citation": "https://doi.org/10.1016/j.pss.2020.105119",
+      "frame": "MOON_ME_DE421",
+      "referenceRadiusM": 1737400,
+      "verticalDatum": "meters above the 1737400 m reference sphere",
+      "selection": "center pixel (floor(width/2), floor(height/2)), zero instrument height",
+      "pixel": [
+        2000,
+        2000
+      ],
+      "gridSize": [
+        4000,
+        4000
+      ],
+      "eastingM": -28697.5,
+      "northingM": -6102.5,
+      "pixelScaleM": 5
+    }
+  },
+  {
+    "id": "malapert-massif",
+    "name": "Malapert Massif",
+    "latitude": -85.99486736492491,
+    "longitude": 359.76539030845663,
+    "altitude": 4783.62939453125,
+    "region": "NASA LOLA Site23",
+    "description": "Reference point at the center pixel of NASA LOLA Site23, not an official landing location. Geometric visibility only.",
+    "provenance": {
+      "agency": "NASA GSFC / LRO LOLA",
+      "product": "Site23",
+      "sourceSha256": "12d280a59cd7580415f6bada638d0abe025ce6727541fddf68d5dc371a6c94cf",
+      "url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site23/Site23_final_adj_5mpp_surf.tif",
+      "documentation": "https://pgda.gsfc.nasa.gov/products/78",
+      "citation": "https://doi.org/10.1016/j.pss.2020.105119",
+      "frame": "MOON_ME_DE421",
+      "referenceRadiusM": 1737400,
+      "verticalDatum": "meters above the 1737400 m reference sphere",
+      "selection": "center pixel (floor(width/2), floor(height/2)), zero instrument height",
+      "pixel": [
+        2100,
+        2100
+      ],
+      "gridSize": [
+        4200,
+        4200
+      ],
+      "eastingM": -497.5,
+      "northingM": 121497.5,
+      "pixelScaleM": 5
+    }
+  },
+  {
+    "id": "leibnitz-beta",
+    "name": "Leibnitz Beta Plateau",
+    "latitude": -85.42660397429981,
+    "longitude": 31.74418217323797,
+    "altitude": 6398.85791015625,
+    "region": "NASA LOLA Site20v2",
+    "description": "Reference point at the center pixel of NASA LOLA Site20v2, not an official landing location. Geometric visibility only.",
+    "provenance": {
+      "agency": "NASA GSFC / LRO LOLA",
+      "product": "Site20v2",
+      "sourceSha256": "0e96c40987c0814eadd4f94f85dacbb33bcab5388dd0b1dc99dc59bf987f072f",
+      "url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site20v2/Site20v2_final_adj_5mpp_surf.tif",
+      "documentation": "https://pgda.gsfc.nasa.gov/products/78",
+      "citation": "https://doi.org/10.1016/j.pss.2020.105119",
+      "frame": "MOON_ME_DE421",
+      "referenceRadiusM": 1737400,
+      "verticalDatum": "meters above the 1737400 m reference sphere",
+      "selection": "center pixel (floor(width/2), floor(height/2)), zero instrument height",
+      "pixel": [
+        2600,
+        2600
+      ],
+      "gridSize": [
+        5200,
+        5200
+      ],
+      "eastingM": 73002.5,
+      "northingM": 117997.5,
+      "pixelScaleM": 5
+    }
+  },
+  {
+    "id": "de-gerlache-rim-1",
+    "name": "de Gerlache Rim (Site11)",
+    "latitude": -88.6835255154757,
+    "longitude": 292.0659224451598,
+    "altitude": 1793.6644287109375,
+    "region": "NASA LOLA Site11",
+    "description": "Reference point at the center pixel of NASA LOLA Site11, not an official landing location. Geometric visibility only.",
+    "provenance": {
+      "agency": "NASA GSFC / LRO LOLA",
+      "product": "Site11",
+      "sourceSha256": "58f3372c35bbd6baf38ffd5633c1c96b59bd89dbd252150581d12893a43136e5",
+      "url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site11/Site11_final_adj_5mpp_surf.tif",
+      "documentation": "https://pgda.gsfc.nasa.gov/products/78",
+      "citation": "https://doi.org/10.1016/j.pss.2020.105119",
+      "frame": "MOON_ME_DE421",
+      "referenceRadiusM": 1737400,
+      "verticalDatum": "meters above the 1737400 m reference sphere",
+      "selection": "center pixel (floor(width/2), floor(height/2)), zero instrument height",
+      "pixel": [
+        1600,
+        1600
+      ],
+      "gridSize": [
+        3200,
+        3200
+      ],
+      "eastingM": -36997.5,
+      "northingM": 14997.5,
+      "pixelScaleM": 5
+    }
+  },
+  {
+    "id": "de-gerlache-rim-2",
+    "name": "de Gerlache Rim (SL2)",
+    "latitude": -88.23008746289112,
+    "longitude": 295.37029395871446,
+    "altitude": -87.76504516601562,
+    "region": "NASA LOLA SL2",
+    "description": "Reference point at the center pixel of NASA LOLA SL2, not an official landing location. Geometric visibility only.",
+    "provenance": {
+      "agency": "NASA GSFC / LRO LOLA",
+      "product": "SL2",
+      "sourceSha256": "16737cb5fdaa47f243715e003450deadeabc6fb1b947a5ed245d5a3fd78a2208",
+      "url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/SL2/SL2_final_adj_5mpp_surf.tif",
+      "documentation": "https://pgda.gsfc.nasa.gov/products/78",
+      "citation": "https://doi.org/10.1016/j.pss.2020.105119",
+      "frame": "MOON_ME_DE421",
+      "referenceRadiusM": 1737400,
+      "verticalDatum": "meters above the 1737400 m reference sphere",
+      "selection": "center pixel (floor(width/2), floor(height/2)), zero instrument height",
+      "pixel": [
+        2000,
+        2000
+      ],
+      "gridSize": [
+        4000,
+        4000
+      ],
+      "eastingM": -48497.5,
+      "northingM": 22997.5,
+      "pixelScaleM": 5
+    }
+  },
+  {
+    "id": "de-gerlache-kocher",
+    "name": "de Gerlache\u2013Kocher Massif",
+    "latitude": -85.82958781895721,
+    "longitude": 243.6764667309542,
+    "altitude": 2705.8857421875,
+    "region": "NASA LOLA Site42",
+    "description": "Reference point at the center pixel of NASA LOLA Site42, not an official landing location. Geometric visibility only.",
+    "provenance": {
+      "agency": "NASA GSFC / LRO LOLA",
+      "product": "Site42",
+      "sourceSha256": "5af35ddca6ee9d7b10348610cb6714fd6d04dcce08d4e8cb6fb1113f4c1839cf",
+      "url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site42/Site42_final_adj_5mpp_surf.tif",
+      "documentation": "https://pgda.gsfc.nasa.gov/products/78",
+      "citation": "https://doi.org/10.1016/j.pss.2020.105119",
+      "frame": "MOON_ME_DE421",
+      "referenceRadiusM": 1737400,
+      "verticalDatum": "meters above the 1737400 m reference sphere",
+      "selection": "center pixel (floor(width/2), floor(height/2)), zero instrument height",
+      "pixel": [
+        2000,
+        2000
+      ],
+      "gridSize": [
+        4000,
+        4000
+      ],
+      "eastingM": -113397.5,
+      "northingM": -56102.5,
+      "pixelScaleM": 5
+    }
+  },
+  {
+    "id": "faustini-rim",
+    "name": "Faustini Rim A",
+    "latitude": -87.88957147641352,
+    "longitude": 90.00223802896309,
+    "altitude": 47.03285217285156,
+    "region": "NASA LOLA LM7",
+    "description": "Reference point at the center pixel of NASA LOLA LM7, not an official landing location. Geometric visibility only.",
+    "provenance": {
+      "agency": "NASA GSFC / LRO LOLA",
+      "product": "LM7",
+      "sourceSha256": "00930f9d110d5477b6d38349eb544ec35d0bb802035113a0894479c317d29023",
+      "url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/LM7/LM7_final_adj_5mpp_surf.tif",
+      "documentation": "https://pgda.gsfc.nasa.gov/products/78",
+      "citation": "https://doi.org/10.1016/j.pss.2020.105119",
+      "frame": "MOON_ME_DE421",
+      "referenceRadiusM": 1737400,
+      "verticalDatum": "meters above the 1737400 m reference sphere",
+      "selection": "center pixel (floor(width/2), floor(height/2)), zero instrument height",
+      "pixel": [
+        2000,
+        2000
+      ],
+      "gridSize": [
+        4000,
+        4000
+      ],
+      "eastingM": 64002.5,
+      "northingM": -2.5,
+      "pixelScaleM": 5
+    }
+  },
+  {
+    "id": "haworth",
+    "name": "Haworth",
+    "latitude": -86.76404982027088,
+    "longitude": 337.22375675824395,
+    "altitude": 1628.14794921875,
+    "region": "NASA LOLA Haworth",
+    "description": "Reference point at the center pixel of NASA LOLA Haworth, not an official landing location. Geometric visibility only.",
+    "provenance": {
+      "agency": "NASA GSFC / LRO LOLA",
+      "product": "Haworth",
+      "sourceSha256": "387fd6e99bca266f4982f7256c4c185921105313882b4c2eee5b5ff1ef75016b",
+      "url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Haworth/Haworth_final_adj_5mpp_surf.tif",
+      "documentation": "https://pgda.gsfc.nasa.gov/products/78",
+      "citation": "https://doi.org/10.1016/j.pss.2020.105119",
+      "frame": "MOON_ME_DE421",
+      "referenceRadiusM": 1737400,
+      "verticalDatum": "meters above the 1737400 m reference sphere",
+      "selection": "center pixel (floor(width/2), floor(height/2)), zero instrument height",
+      "pixel": [
+        2980,
+        2980
+      ],
+      "gridSize": [
+        5960,
+        5960
+      ],
+      "eastingM": -37997.5,
+      "northingM": 90497.5,
+      "pixelScaleM": 5
+    }
+  },
+  {
+    "id": "nobile-rim",
+    "name": "Nobile Rim 1",
+    "latitude": -85.43811594434003,
+    "longitude": 37.368120057336974,
+    "altitude": 5946.380859375,
+    "region": "NASA LOLA Site06",
+    "description": "Reference point at the center pixel of NASA LOLA Site06, not an official landing location. Geometric visibility only.",
+    "provenance": {
+      "agency": "NASA GSFC / LRO LOLA",
+      "product": "Site06",
+      "sourceSha256": "cca17e8067601dd659b583f889204db6bce685bc30c60a9e62427a8bce36b03d",
+      "url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/Site06/Site06_final_adj_5mpp_surf.tif",
+      "documentation": "https://pgda.gsfc.nasa.gov/products/78",
+      "citation": "https://doi.org/10.1016/j.pss.2020.105119",
+      "frame": "MOON_ME_DE421",
+      "referenceRadiusM": 1737400,
+      "verticalDatum": "meters above the 1737400 m reference sphere",
+      "selection": "center pixel (floor(width/2), floor(height/2)), zero instrument height",
+      "pixel": [
+        2000,
+        2000
+      ],
+      "gridSize": [
+        4000,
+        4000
+      ],
+      "eastingM": 84002.5,
+      "northingM": 109997.5,
+      "pixelScaleM": 5
+    }
+  },
+  {
+    "id": "amundsen-rim",
+    "name": "Amundsen Rim",
+    "latitude": -84.22869118656551,
+    "longitude": 69.44500765096485,
+    "altitude": 399.28656005859375,
+    "region": "NASA LOLA DM1",
+    "description": "Reference point at the center pixel of NASA LOLA DM1, not an official landing location. Geometric visibility only.",
+    "provenance": {
+      "agency": "NASA GSFC / LRO LOLA",
+      "product": "DM1",
+      "sourceSha256": "ceb7e786d05ef6a604c80b78be885e641ad7bd2b5c3aac944201a4f2008d8ca4",
+      "url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/DM1/DM1_final_adj_5mpp_surf.tif",
+      "documentation": "https://pgda.gsfc.nasa.gov/products/78",
+      "citation": "https://doi.org/10.1016/j.pss.2020.105119",
+      "frame": "MOON_ME_DE421",
+      "referenceRadiusM": 1737400,
+      "verticalDatum": "meters above the 1737400 m reference sphere",
+      "selection": "center pixel (floor(width/2), floor(height/2)), zero instrument height",
+      "pixel": [
+        2000,
+        2000
+      ],
+      "gridSize": [
+        4000,
+        4000
+      ],
+      "eastingM": 164002.5,
+      "northingM": 61497.5,
+      "pixelScaleM": 5
+    }
+  },
+  {
+    "id": "cabeus-exterior",
+    "name": "Cabeus Exterior Wall 1",
+    "latitude": -86.9244286288993,
+    "longitude": 288.4339776750948,
+    "altitude": -2229.038818359375,
+    "region": "NASA LOLA NPA",
+    "description": "Reference point at the center pixel of NASA LOLA NPA, not an official landing location. Geometric visibility only.",
+    "provenance": {
+      "agency": "NASA GSFC / LRO LOLA",
+      "product": "NPA",
+      "sourceSha256": "1d13a8befcaefbe168589d525aee05a14aff222068221d93406ce951600d2b32",
+      "url": "https://pgda.gsfc.nasa.gov/data/LOLA_5mpp/NPA/NPA_final_adj_5mpp_surf.tif",
+      "documentation": "https://pgda.gsfc.nasa.gov/products/78",
+      "citation": "https://doi.org/10.1016/j.pss.2020.105119",
+      "frame": "MOON_ME_DE421",
+      "referenceRadiusM": 1737400,
+      "verticalDatum": "meters above the 1737400 m reference sphere",
+      "selection": "center pixel (floor(width/2), floor(height/2)), zero instrument height",
+      "pixel": [
+        2000,
+        2000
+      ],
+      "gridSize": [
+        4000,
+        4000
+      ],
+      "eastingM": -88497.5,
+      "northingM": 29497.5,
+      "pixelScaleM": 5
+    }
+  }
+]

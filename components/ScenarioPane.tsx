@@ -19,6 +19,7 @@ const Lunar3DCanvas = dynamic(() => import("./Lunar3DCanvas"), {
 export interface ScenarioConfig {
   label: string;
   siteId: string;
+  location?: { latitude: number; longitude: number };
   startTime: string;
   stopTime: string;
   stepSize: string;
@@ -48,8 +49,10 @@ export default function ScenarioPane({
   /** The shown result was computed for different inputs than the ones selected. */
   stale?: boolean;
 }) {
-  const site: LandingSite | undefined = LANDING_SITES.find((item) => item.id === config.siteId);
-  const records = result?.records ?? [];
+  const site: LandingSite | undefined = config.siteId === "custom"
+    ? (!stale ? result?.site : undefined)
+    : LANDING_SITES.find((item) => item.id === config.siteId);
+  const records = !stale && !loading ? result?.records ?? [] : [];
   const sample: EphemerisSample | null = records[index] ?? null;
 
   return (
@@ -65,8 +68,9 @@ export default function ScenarioPane({
             className="mt-1 w-full rounded-md border border-cyan-300/25 bg-black/40 px-3 py-2 text-sm text-cyan-50"
             value={config.siteId}
             disabled={lockSite}
-            onChange={(event) => onChange({ ...config, siteId: event.target.value })}
+            onChange={(event) => onChange({ ...config, siteId: event.target.value, location: config.location ?? { latitude: -89, longitude: 0 } })}
           >
+            <option value="custom">Custom coordinates</option>
             {LANDING_SITES.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
@@ -74,12 +78,26 @@ export default function ScenarioPane({
             ))}
           </select>
         </label>
+        {config.siteId === "custom" && (
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {(["latitude", "longitude"] as const).map((field) => (
+              <label key={field} className="text-[10px] uppercase tracking-[0.16em] text-cyan-100/50">
+                {field === "latitude" ? "Latitude °N" : "Longitude °E"}
+                <input type="number" step="any" min={field === "latitude" ? -90 : -180} max={field === "latitude" ? 90 : 360}
+                  disabled={lockSite} value={Number.isFinite(config.location?.[field]) ? config.location?.[field] : ""}
+                  onChange={(event) => onChange({ ...config, location: { latitude: config.location?.latitude ?? -89, longitude: config.location?.longitude ?? 0, [field]: event.target.value === "" ? Number.NaN : Number(event.target.value) } })}
+                  className="mt-1 w-full rounded-md border border-cyan-300/25 bg-black/40 px-2 py-2 text-xs" />
+              </label>
+            ))}
+          </div>
+        )}
+        {config.siteId === "custom" && !site && <p className="mt-2 text-xs text-cyan-100/65">Approximate height from the global 0.25° NASA LOLA grid (~7.6 km north–south). Geometric visibility only; no landing-safety assessment.</p>}
         {site && (
           <p className="mt-2 text-xs leading-relaxed text-cyan-100/65">{site.description}</p>
         )}
         {site && (
           <p className="mt-2 text-[11px] text-amber-200/80">
-            {site.latitude.toFixed(2)}°, {site.longitude.toFixed(2)}°E · {site.altitude} m · {site.region}
+            {site.latitude.toFixed(5)}°, {site.longitude.toFixed(5)}°E · {site.altitude.toFixed(1)} m above reference sphere · <a href={site.provenance.documentation} target="_blank" rel="noreferrer" className="underline">{site.region}</a>
           </p>
         )}
         <div className="mt-3 grid grid-cols-2 gap-2">

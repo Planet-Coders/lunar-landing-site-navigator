@@ -1,0 +1,30 @@
+{
+  "documentation": "https://svs.gsfc.nasa.gov/4720/",
+  "maps": [
+    {
+      "url": "https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/lroc_color_poles_2k.tif",
+      "sourceSha256": "13b797422e8c4b8607ff2b2623ac3a046a6da0132d567c2d272d92fad7052c4a",
+      "file": "/data/moon-color.png",
+      "longitudeAtLeftEdge": -180,
+      "longitudeAtCenter": 0,
+      "usage": "2019 NASA SVS adaptation of LROC WAC Hapke-normalized mosaic",
+      "sha256": "14501da0775e8b4d082e047b92de78253e71e087f7f119052b86ec28952cb4f3"
+    },
+    {
+      "url": "https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/ldem_4.tif",
+      "sourceSha256": "330afa2556a86fd05ac6ba2f912f246600fdade35de2a0d90593d50d07b01b65",
+      "file": "/data/moon-height.png",
+      "longitudeAtLeftEdge": -180,
+      "longitudeAtCenter": 0,
+      "minHeightKm": -8.878499984741211,
+      "maxHeightKm": 10.504000663757324,
+      "usage": "display bump map only; not used for local visibility",
+      "sha256": "a274625791383b08420ca67663e5b54d42f769921be7b45decd13e5ac5a799d0",
+      "width": 1440,
+      "height": 720,
+      "gridSha256": "f308a5ad2ec44491f539bf18a19629f481e9c3f569ab1a91d8e72cc12745365f",
+      "pixelScaleDeg": 0.25,
+      "gridUnits": "signed little-endian int16, 0.5 m above 1737400 m sphere"
+    }
+  ]
+}

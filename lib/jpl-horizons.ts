@@ -1,318 +1,202 @@
-import { HORIZONS_DATE_RE, parseHorizonsDate } from "./dates";
+import { createHash } from "node:crypto";
+import { EnvHttpProxyAgent } from "undici";
+import { parseHorizonsDate, normalizeUtcTime } from "./dates";
 import { getSiteById } from "./sites";
+import { customLandingSite } from "./custom-location";
 import type {
-  CelestialTarget,
-  EvaluationRequest,
-  EvaluationResult,
-  HorizonsRecord,
-  LandingSite,
+  CelestialTarget, EvaluationRequest, EvaluationResult, HorizonsRecord,
+  LandingSite, HorizonsProvenance,
 } from "./types";
 
 const HORIZONS_URL = "https://ssd.jpl.nasa.gov/api/horizons.api";
-const CACHE_SECONDS = 60 * 60 * 6;
-const USER_AGENT = "LuminaLuna/1.0 (+https://github.com/lumina-luna; lunar landing evaluator)";
-
-let horizonsQueue: Promise<unknown> = Promise.resolve();
-
-function enqueueHorizons<T>(task: () => Promise<T>): Promise<T> {
-  const run = horizonsQueue.then(task, task);
-  horizonsQueue = run.then(
-    () => undefined,
-    () => undefined,
-  );
-  return run;
-}
+const CACHE_MS = 6 * 60 * 60 * 1000;
+type Query = { target: CelestialTarget; site: LandingSite; startTime: string; stopTime: string; stepSize: string };
+type Export = { text: string; provenance: HorizonsProvenance };
+let queue: Promise<unknown> = Promise.resolve();
+const cache = new Map<string, { expires: number; data: Promise<Export> }>();
+const dispatcher = new EnvHttpProxyAgent();
 
 export class HorizonsError extends Error {
-  constructor(
-    message: string,
-    readonly details?: string,
-  ) {
+  constructor(message: string, readonly details?: string, readonly status = 502) {
     super(message);
     this.name = "HorizonsError";
   }
 }
 
-function quote(value: string): string {
-  return `'${value.replace(/'/g, "")}'`;
+export function buildHorizonsParams(options: Query): URLSearchParams {
+  const values = {
+    COMMAND: options.target === "sun" ? "10" : "399",
+    OBJ_DATA: "NO", MAKE_EPHEM: "YES", EPHEM_TYPE: "OBSERVER",
+    CENTER: "coord@301", COORD_TYPE: "GEODETIC",
+    SITE_COORD: `${options.site.longitude},${options.site.latitude},${options.site.altitude / 1000}`,
+    START_TIME: options.startTime, STOP_TIME: options.stopTime, STEP_SIZE: options.stepSize,
+    QUANTITIES: "1,4,9,13,20", ANG_FORMAT: "DEG", APPARENT: "AIRLESS",
+    REF_SYSTEM: "ICRF", CAL_FORMAT: "CAL", TIME_TYPE: "UT", TIME_DIGITS: "MINUTES",
+    EXTRA_PREC: "NO", CSV_FORMAT: "YES",
+  };
+  return new URLSearchParams({ format: "json", ...Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [key, `'${value}'`]),
+  ) });
 }
 
-function buildHorizonsParams(options: {
-  target: CelestialTarget;
-  site: LandingSite;
-  startTime: string;
-  stopTime: string;
-  stepSize: string;
-}): URLSearchParams {
-  const command = options.target === "sun" ? "10" : "399";
-  const altKm = options.site.altitude / 1000;
-  const siteCoord = `${options.site.longitude},${options.site.latitude},${altKm}`;
-
-  return new URLSearchParams({
-    format: "text",
-    COMMAND: quote(command),
-    OBJ_DATA: quote("NO"),
-    MAKE_EPHEM: quote("YES"),
-    EPHEM_TYPE: quote("OBSERVER"),
-    CENTER: quote("coord@301"),
-    COORD_TYPE: quote("GEODETIC"),
-    SITE_COORD: quote(siteCoord),
-    START_TIME: quote(options.startTime),
-    STOP_TIME: quote(options.stopTime),
-    STEP_SIZE: quote(options.stepSize),
-    QUANTITIES: quote("1,4,9,20"),
-    ANG_FORMAT: quote("DEG"),
-    APPARENT: quote("AIRLESS"),
-    REF_SYSTEM: quote("ICRF"),
-    CAL_FORMAT: quote("CAL"),
-    EXTRA_PREC: quote("NO"),
-    CSV_FORMAT: quote("NO"),
-  });
+function csv(line: string): string[] {
+  // The requested Horizons fields contain no embedded commas or quoted text.
+  return line.split(",").map((field) => field.trim());
 }
 
-function parseNumber(token: string | undefined): number | null {
-  if (!token) return null;
-  const cleaned = token.replace(/D/g, "E");
-  if (/n\.?a\.?/i.test(cleaned) || cleaned === "*" || cleaned === "****") {
-    return null;
-  }
-  const value = Number(cleaned);
-  return Number.isFinite(value) ? value : null;
+function number(token: string): number | null {
+  if (!token || /^(n\.?a\.?|\*+)$/i.test(token)) return null;
+  const value = Number(token.replace(/[dD]/g, "E"));
+  if (!Number.isFinite(value)) throw new HorizonsError("Invalid numeric value in Horizons table");
+  return value;
 }
 
-/**
- * Horizons observer tables place two 1-character flags immediately after the
- * calendar date: solar-presence (`*` daylight) and interfering-body (`i`, `m`, …).
- */
-function splitDateAndFlags(line: string): {
-  date: string;
-  flags: string;
-  rest: string;
-} | null {
-  const match = line.match(HORIZONS_DATE_RE);
-  if (!match || match.index === undefined) return null;
-
-  const date = match[0].replace(/\s+/g, " ").trim();
-  const afterDate = line.slice(match.index + match[0].length);
-  const flagChunk = afterDate.slice(0, 4);
-  const flagChars = flagChunk.match(/^(\s*[*CNA]?)(\s*[a-zA-Z])?/);
-  const flags = `${flagChars?.[1] ?? ""}${flagChars?.[2] ?? ""}`;
-  const consumed = flagChars?.[0]?.length ?? 0;
-  const rest = afterDate.slice(consumed);
-
-  return { date, flags, rest };
-}
-
-function tokenizeFields(rest: string): string[] {
-  return rest
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .filter((token) => !/^[\*]+$/.test(token));
-}
-
-export function parseHorizonsTable(
-  text: string,
-  target: CelestialTarget,
-): HorizonsRecord[] {
+/** Parse by verified headings; keep n.a. cells in place rather than shifting columns. */
+export function parseHorizonsTable(text: string, target: CelestialTarget): HorizonsRecord[] {
   const start = text.indexOf("$$SOE");
   const end = text.indexOf("$$EOE");
-  if (start === -1 || end === -1 || end <= start) {
-    throw new HorizonsError(
-      "Horizons response missing $$SOE/$$EOE ephemeris bounds",
-      text.slice(0, 1200),
-    );
-  }
-
-  const block = text.slice(start + "$$SOE".length, end);
-  const records: HorizonsRecord[] = [];
-
-  for (const rawLine of block.split(/\r?\n/)) {
-    const line = rawLine.trimEnd();
-    if (!line.trim()) continue;
-
-    const parts = splitDateAndFlags(line);
-    if (!parts) continue;
-
-    const tokens = tokenizeFields(parts.rest);
-    const numbers = tokens.map(parseNumber);
-
-    const rightAscension = numbers[0] ?? null;
-    const declination = numbers[1] ?? null;
-    const azimuth = numbers[2] ?? null;
-    const elevation = numbers[3] ?? null;
-    const apparentMagnitude = numbers[4] ?? null;
-    // Quantity 9 emits APmag and S-brt; quantity 20 emits delta and deldot.
-    const distanceAU = (numbers.length >= 8 ? numbers[6] : numbers[5]) ?? null;
-    const rangeRateKMps = (numbers.length >= 8 ? numbers[7] : numbers[6]) ?? null;
-
-    // `*` is observer solar-presence. `i` is Horizons' interfering-body flag,
-    // not geometric visibility — Earth LOS uses topocentric elevation.
-    const isDaylight =
-      parts.flags.includes("*") ||
-      (target === "sun" && elevation !== null && elevation > 0);
-
-    const isEarthVisible = target === "earth" && elevation !== null && elevation > 0;
-
-    records.push({
-      date: parts.date,
-      isDaylight,
-      isEarthVisible,
-      rightAscension,
-      declination,
-      azimuth,
-      elevation,
-      apparentMagnitude,
-      distanceAU,
-      rangeRateKMps,
-    });
-  }
-
-  if (records.length === 0) {
-    throw new HorizonsError(
-      "Horizons table contained no parseable observer rows",
-      block.slice(0, 800),
-    );
-  }
-
+  if (start < 0 || end <= start) throw new HorizonsError("Horizons response missing ephemeris bounds");
+  const heading = text.slice(0, start).split(/\r?\n/).reverse().find((line) => line.includes("Date__(UT)__HR:MN,"));
+  if (!heading) throw new HorizonsError("Expected Horizons UTC minute-precision CSV headings");
+  const columns = csv(heading);
+  const index = (name: string) => {
+    const i = columns.indexOf(name);
+    if (i < 0 || columns.lastIndexOf(name) !== i) throw new HorizonsError(`Missing or duplicate Horizons column: ${name}`);
+    return i;
+  };
+  const ti = index("Date__(UT)__HR:MN");
+  const fields = ["R.A._(ICRF)", "DEC_(ICRF)", "Azi_(a-app)", "Elev_(a-app)", "APmag", "delta", "deldot", "Ang-diam"].map(index);
+  let previous = -Infinity;
+  const records = text.slice(start + 5, end).split(/\r?\n/).filter((line) => line.trim()).map((line) => {
+    const row = csv(line);
+    if (row.length !== columns.length) throw new HorizonsError("Horizons CSV row length does not match headings");
+    const date = row[ti];
+    const time = parseHorizonsDate(date);
+    if (!Number.isFinite(time) || time <= previous) throw new HorizonsError("Invalid, duplicate, or unordered Horizons timestamp");
+    previous = time;
+    const [rightAscension, declination, azimuth, elevation, apparentMagnitude, distanceAU, rangeRateKMps, angularDiameterArcsec] = fields.map((i) => number(row[i]));
+    if (azimuth === null || azimuth < 0 || azimuth > 360 || elevation === null || Math.abs(elevation) > 90 || angularDiameterArcsec === null || angularDiameterArcsec <= 0 || angularDiameterArcsec > 360 * 3600 ||
+        (rightAscension !== null && (rightAscension < 0 || rightAscension > 360)) ||
+        (declination !== null && Math.abs(declination) > 90) || (distanceAU !== null && distanceAU <= 0)) {
+      throw new HorizonsError("Missing or out-of-range Horizons angles or distance");
+    }
+    return {
+      date, rightAscension, declination, azimuth, elevation, apparentMagnitude,
+      distanceAU, rangeRateKMps, angularDiameterArcsec,
+      // '*' uses the solar upper limb, unlike the UI's center-above-plane rule.
+      isDaylight: target === "sun" && elevation > 0,
+      isEarthVisible: target === "earth" && elevation > 0,
+    };
+  });
+  if (!records.length) throw new HorizonsError("Horizons table contained no observer rows");
   return records;
 }
 
-function assertHorizonsSuccess(text: string): void {
-  if (/No such object|Cannot interpret|ERROR/i.test(text) && !text.includes("$$SOE")) {
-    throw new HorizonsError("Horizons rejected the query", text.slice(0, 1500));
-  }
+function header(text: string, name: string): string {
+  const line = text.split(/\r?\n/).find((value) => value.startsWith(name));
+  if (!line) throw new HorizonsError(`Missing Horizons provenance: ${name}`);
+  return line.slice(line.indexOf(":") + 1).trim();
 }
 
-export async function fetchHorizonsText(options: {
-  target: CelestialTarget;
-  site: LandingSite;
-  startTime: string;
-  stopTime: string;
-  stepSize: string;
-}): Promise<string> {
-  return enqueueHorizons(async () => {
-    const params = buildHorizonsParams(options);
-    const url = `${HORIZONS_URL}?${params.toString()}`;
-
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Accept: "text/plain",
-        "User-Agent": USER_AGENT,
-      },
-      next: { revalidate: CACHE_SECONDS },
-    });
-
-    if (!response.ok) {
-      throw new HorizonsError(
-        `Horizons HTTP ${response.status}`,
-        await response.text().catch(() => response.statusText),
-      );
+async function fetchExport(options: Query): Promise<Export> {
+  const url = `${HORIZONS_URL}?${buildHorizonsParams(options)}`;
+  const existing = cache.get(url);
+  if (existing && existing.expires > Date.now()) return existing.data;
+  const task = async (): Promise<Export> => {
+    const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(30000), ...{ dispatcher } });
+    if (!response.ok) throw new HorizonsError(`Horizons HTTP ${response.status}`);
+    const data = await response.json();
+    if (data.signature?.source !== "NASA/JPL Horizons API" || typeof data.signature.version !== "string" || typeof data.result !== "string" || data.error) {
+      throw new HorizonsError("Invalid NASA/JPL Horizons API response", String(data.error ?? "Missing result or API signature"));
     }
-
-    const text = await response.text();
-    assertHorizonsSuccess(text);
-    return text;
-  });
-}
-
-export async function queryTargetEphemeris(options: {
-  target: CelestialTarget;
-  site: LandingSite;
-  startTime: string;
-  stopTime: string;
-  stepSize: string;
-}): Promise<HorizonsRecord[]> {
-  const text = await fetchHorizonsText(options);
-  return parseHorizonsTable(text, options.target);
-}
-
-function emptyCelestial() {
-  return {
-    rightAscension: null,
-    declination: null,
-    azimuth: null,
-    elevation: null,
-    apparentMagnitude: null,
-    distanceAU: null,
-    rangeRateKMps: null,
+    const text: string = data.result;
+    const target = header(text, "Target body name:");
+    const center = header(text, "Center body name:");
+    const referenceFrame = header(text, "Center pole/equ :");
+    const referenceRadii = header(text, "Center radii    :");
+    const observer = header(text, "Center geodetic :").split("{")[0].split(",").map(Number);
+    const observerLonError = Math.abs(((observer[0] - options.site.longitude + 540) % 360) - 180);
+    if (!target.startsWith(options.target === "sun" ? "Sun (10)" : "Earth (399)") || !center.startsWith("Moon (301)") || !referenceFrame.startsWith("MEAN_ME") || !referenceRadii.startsWith("1737.4, 1737.4, 1737.4")) {
+      throw new HorizonsError("Unexpected Horizons target or lunar reference model");
+    }
+    if (observer.length !== 3 || !observer.every(Number.isFinite) || observerLonError > 1e-5 || Math.abs(observer[1] - options.site.latitude) > 1e-5 || Math.abs(observer[2] - options.site.altitude / 1000) > 1e-5) {
+      throw new HorizonsError("Horizons observer does not match the requested coordinate and height");
+    }
+    parseHorizonsTable(text, options.target);
+    return { text, provenance: {
+      provider: "NASA/JPL Horizons API", apiVersion: data.signature.version,
+      queryUrl: url, retrievedAt: new Date().toISOString(),
+      sha256: createHash("sha256").update(text).digest("hex"),
+      target, center, referenceFrame, referenceRadii,
+    } };
   };
+  // Serialize public API requests and cache original retrieval metadata.
+  const data = queue.then(task, task);
+  queue = data.then(() => undefined, () => undefined);
+  if (cache.size >= 128) cache.delete(cache.keys().next().value!);
+  const entry = { expires: Date.now() + CACHE_MS, data };
+  cache.set(url, entry);
+  data.catch(() => { if (cache.get(url) === entry) cache.delete(url); });
+  return data;
 }
 
-function toCelestial(record: HorizonsRecord | undefined) {
-  if (!record) return emptyCelestial();
-  return {
-    rightAscension: record.rightAscension,
-    declination: record.declination,
-    azimuth: record.azimuth,
-    elevation: record.elevation,
-    apparentMagnitude: record.apparentMagnitude,
-    distanceAU: record.distanceAU,
-    rangeRateKMps: record.rangeRateKMps,
-  };
+export async function fetchHorizonsText(options: Query): Promise<string> {
+  return (await fetchExport(options)).text;
 }
 
-export async function evaluateLandingSite(
-  request: EvaluationRequest,
-): Promise<EvaluationResult> {
-  const site = getSiteById(request.siteId);
-  if (!site) {
-    throw new HorizonsError(`Unknown landing site: ${request.siteId}`);
+export async function queryTargetEphemeris(options: Query): Promise<HorizonsRecord[]> {
+  return parseHorizonsTable(await fetchHorizonsText(options), options.target);
+}
+
+export function combineEphemerides(sun: HorizonsRecord[], earth: HorizonsRecord[]) {
+  if (!sun.length || sun.length !== earth.length || sun.some((row, i) => row.date !== earth[i].date)) {
+    throw new HorizonsError("Sun and Earth ephemerides must contain identical timestamps");
   }
+  return sun.map((row, i) => ({
+    date: row.date, isDaylight: row.isDaylight, isEarthVisible: earth[i].isEarthVisible,
+    sun: row, earth: earth[i],
+  }));
+}
 
-  const startTime = request.startTime.trim().replace("T", " ");
-  const stopTime = request.stopTime.trim().replace("T", " ");
-  const stepSize = (request.stepSize ?? "2 h").trim() || "2 h";
-
-  if (!startTime || !stopTime) {
-    throw new HorizonsError("Start and stop times are required");
+export async function evaluateLandingSite(request: EvaluationRequest): Promise<EvaluationResult> {
+  let site = getSiteById(request.siteId);
+  if (request.siteId === "custom") {
+    const location = request.location;
+    if (!location || typeof location.latitude !== "number" || typeof location.longitude !== "number" || !Number.isFinite(location.latitude) || Math.abs(location.latitude) > 90 || !Number.isFinite(location.longitude) || location.longitude < -180 || location.longitude > 360) {
+      throw new HorizonsError("Custom location requires latitude -90 to 90 and east longitude -180 to 360", undefined, 400);
+    }
+    site = customLandingSite(location.latitude, location.longitude);
   }
-
-  const startMs = Date.parse(startTime);
-  const stopMs = Date.parse(stopTime);
-  if (Number.isNaN(startMs) || Number.isNaN(stopMs) || stopMs <= startMs) {
-    throw new HorizonsError("Stop time must be after start time");
+  if (!site) throw new HorizonsError(`Unknown landing site: ${request.siteId}`, undefined, 400);
+  let startTime: string, stopTime: string;
+  try {
+    startTime = normalizeUtcTime(request.startTime);
+    stopTime = normalizeUtcTime(request.stopTime);
+  } catch {
+    throw new HorizonsError("Start and stop times must be valid UTC calendar times at minute precision", undefined, 400);
   }
-
-  const maxSpanMs = 1000 * 60 * 60 * 24 * 120;
-  if (stopMs - startMs > maxSpanMs) {
-    throw new HorizonsError("Date range cannot exceed 120 days");
+  const startMs = Date.parse(startTime.replace(" ", "T") + "Z");
+  const stopMs = Date.parse(stopTime.replace(" ", "T") + "Z");
+  if (stopMs <= startMs) throw new HorizonsError("Stop time must be after start time", undefined, 400);
+  if (stopMs - startMs > 120 * 86400000) throw new HorizonsError("Date range cannot exceed 120 days", undefined, 400);
+  const stepSize = (request.stepSize ?? "2 h").trim();
+  const step = stepSize.match(/^([1-9]\d*)\s+([mhd])$/);
+  const minutes = step ? Number(step[1]) * ({ m: 1, h: 60, d: 1440 }[step[2]] ?? 0) : 0;
+  if (!minutes || !Number.isSafeInteger(minutes) || minutes * 60000 > stopMs - startMs || (stopMs - startMs) / (minutes * 60000) > 10000) {
+    throw new HorizonsError("Step size must be a positive m/h/d interval within the date range, with at most 10000 samples", undefined, 400);
   }
-
   const query = { site, startTime, stopTime, stepSize };
-  const [sunRows, earthRows] = await Promise.all([
-    queryTargetEphemeris({ ...query, target: "sun" }),
-    queryTargetEphemeris({ ...query, target: "earth" }),
+  const [sunExport, earthExport] = await Promise.all([
+    fetchExport({ ...query, target: "sun" }), fetchExport({ ...query, target: "earth" }),
   ]);
-
-  const earthByDate = new Map(earthRows.map((row) => [row.date, row]));
-  const dates = new Set([...sunRows.map((r) => r.date), ...earthRows.map((r) => r.date)]);
-  const ordered = Array.from(dates).sort(
-    (a, b) => parseHorizonsDate(a) - parseHorizonsDate(b),
-  );
-
-  const sunByDate = new Map(sunRows.map((row) => [row.date, row]));
-
-  const records = ordered.map((date) => {
-    const sun = sunByDate.get(date);
-    const earth = earthByDate.get(date);
-    return {
-      date,
-      isDaylight: Boolean(sun?.isDaylight || earth?.isDaylight),
-      isEarthVisible: earth?.isEarthVisible ?? false,
-      sun: toCelestial(sun),
-      earth: toCelestial(earth),
-    };
-  });
-
+  const records = combineEphemerides(parseHorizonsTable(sunExport.text, "sun"), parseHorizonsTable(earthExport.text, "earth"));
+  const expected = Math.floor((stopMs - startMs) / (minutes * 60000)) + 1;
+  if (records.length !== expected || records.some((r, i) => parseHorizonsDate(r.date) !== startMs + i * minutes * 60000)) {
+    throw new HorizonsError("Horizons timestamps do not match the requested interval");
+  }
   return {
-    site,
-    startTime,
-    stopTime,
-    stepSize,
-    records,
-    source: "horizons",
-    fetchedAt: new Date().toISOString(),
+    site, startTime, stopTime, stepSize, records, source: "horizons",
+    fetchedAt: [sunExport.provenance.retrievedAt, earthExport.provenance.retrievedAt].sort()[0],
+    provenance: { timeScale: "UTC", visibility: "target center above reference horizontal plane; no terrain mask", sun: sunExport.provenance, earth: earthExport.provenance },
   };
 }

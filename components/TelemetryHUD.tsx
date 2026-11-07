@@ -21,11 +21,11 @@ function Gauge({
   value: number | null;
   min?: number;
   max?: number;
-  good: boolean;
+  good: boolean | null;
   unit?: string;
 }) {
   const clamped = value === null ? 0 : Math.min(max, Math.max(min, value));
-  const pct = ((clamped - min) / (max - min)) * 100;
+  const pct = value === null ? 0 : ((clamped - min) / (max - min)) * 100;
   const radius = 36;
   const circ = 2 * Math.PI * radius;
   const dash = (pct / 100) * circ;
@@ -60,7 +60,7 @@ function Gauge({
       <div>
         <p className="text-[10px] uppercase tracking-[0.22em] text-cyan-200/60">{label}</p>
         <p className={`text-sm ${good ? "text-lime-300" : "text-rose-300"}`}>
-          {good ? "NOMINAL" : "OFF NOMINAL"}
+          {good === null ? "NO DATA" : good ? "ABOVE" : "BELOW"}
         </p>
       </div>
     </div>
@@ -78,8 +78,8 @@ export default function TelemetryHUD({
 }) {
   const sunEl = sample?.sun.elevation ?? null;
   const earthEl = sample?.earth.elevation ?? null;
-  const daylight = sample?.isDaylight ?? false;
-  const los = sample?.isEarthVisible ?? false;
+  const daylight = sample?.isDaylight;
+  const los = sample?.isEarthVisible;
   const sunset = hoursUntilFlagDrop(records, index, "isDaylight");
   const earthset = hoursUntilFlagDrop(records, index, "isEarthVisible");
 
@@ -89,9 +89,9 @@ export default function TelemetryHUD({
         <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-amber-200/80">
           <SunMedium size={14} /> Power
         </div>
-        <Gauge label="Solar elevation" value={sunEl} good={(sunEl ?? -99) > 0} min={-8} max={16} />
+        <Gauge label="Solar elevation" value={sunEl} good={sunEl === null ? null : sunEl > 0} min={-8} max={16} />
         <p className="mt-2 text-xs text-cyan-100/70">
-          Daylight {daylight ? "ACTIVE" : "NIGHT"} · APmag {formatSigned(sample?.sun.apparentMagnitude ?? null, 2)}
+          Daylight {daylight === undefined ? "—" : daylight ? "ACTIVE" : "NIGHT"} · APmag {formatSigned(sample?.sun.apparentMagnitude ?? null, 2)}
         </p>
       </div>
 
@@ -99,24 +99,24 @@ export default function TelemetryHUD({
         <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-cyan-200/80">
           <Antenna size={14} /> Comm
         </div>
-        <Gauge label="Earth elevation" value={earthEl} good={(earthEl ?? -99) > 0} min={-6} max={12} />
+        <Gauge label="Earth elevation" value={earthEl} good={earthEl === null ? null : earthEl > 0} min={-6} max={12} />
         <p className="mt-2 text-xs text-cyan-100/70">
-          LOS {los ? "OPEN" : "OCCULTED"} · Δ {formatSigned(sample?.earth.distanceAU ?? null, 6, " AU")}
+          LOS {los === undefined ? "—" : los ? "OPEN" : "OCCULTED"} · Δ {formatSigned(sample?.earth.distanceAU ?? null, 6, " AU")}
         </p>
       </div>
 
       <div className="hud-panel rounded-xl p-3">
         <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-fuchsia-200/80">
-          <TimerReset size={14} /> Windows
+          <TimerReset size={14} /> Sampled windows
         </div>
         <div className="space-y-2 text-sm">
           <div className="flex items-center justify-between">
             <span className="text-cyan-100/60">Sunset</span>
-            <span className="text-amber-200">{formatDuration(sunset)}</span>
+            <span className="text-amber-200">{sample ? formatDuration(sunset) : "—"}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-cyan-100/60">Earthset</span>
-            <span className="text-hud-cyan">{formatDuration(earthset)}</span>
+            <span className="text-hud-cyan">{sample ? formatDuration(earthset) : "—"}</span>
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-cyan-100/50">Sun RA/DEC</span>

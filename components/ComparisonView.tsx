@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { GitCompare, MapPin, Radar } from "lucide-react";
-import { defaultWindow } from "@/lib/dates";
+import { defaultWindow, normalizeUtcTime } from "@/lib/dates";
 import { LANDING_SITES } from "@/lib/sites";
 import type { ComparisonMode, EvaluationResult } from "@/lib/types";
 import type { SiteSlot } from "./LunarGlobe";
@@ -23,12 +23,17 @@ function formatDelta(value: number | null): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(2)}°`;
 }
 
+function validLocation(location: ScenarioConfig["location"]) {
+  return location && Number.isFinite(location.latitude) && Math.abs(location.latitude) <= 90 && Number.isFinite(location.longitude) && location.longitude >= -180 && location.longitude <= 360 ? location : undefined;
+}
+
 async function fetchEvaluation(config: ScenarioConfig): Promise<EvaluationResult> {
   const response = await fetch("/api/evaluations", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       siteId: config.siteId,
+      location: config.siteId === "custom" ? config.location : undefined,
       startTime: config.startTime,
       stopTime: config.stopTime,
       stepSize: config.stepSize,
@@ -44,9 +49,10 @@ async function fetchEvaluation(config: ScenarioConfig): Promise<EvaluationResult
 /** True when a result no longer matches the inputs shown in its pane. */
 function isStale(result: EvaluationResult | null, config: ScenarioConfig): boolean {
   if (!result) return false;
-  const norm = (t: string) => t.trim().replace("T", " ");
+  const norm = (t: string) => { try { return normalizeUtcTime(t); } catch { return t; } };
   return (
     result.site.id !== config.siteId ||
+    (config.siteId === "custom" && (result.site.latitude !== config.location?.latitude || result.site.longitude !== ((config.location?.longitude ?? 0) % 360 + 360) % 360)) ||
     result.startTime !== norm(config.startTime) ||
     result.stopTime !== norm(config.stopTime) ||
     result.stepSize !== config.stepSize.trim()
@@ -101,7 +107,7 @@ export default function ComparisonView() {
     const rightConfig =
       mode === "sites"
         ? { ...right, startTime: left.startTime, stopTime: left.stopTime, stepSize: left.stepSize }
-        : { ...right, siteId: left.siteId, stepSize: left.stepSize };
+        : { ...right, siteId: left.siteId, location: left.location, stepSize: left.stepSize };
 
     const [a, b] = await Promise.allSettled([
       fetchEvaluation({ ...left, stepSize: left.stepSize }),
@@ -154,23 +160,24 @@ export default function ComparisonView() {
   const rightEffective: ScenarioConfig = {
     ...right,
     siteId: mode === "dates" ? left.siteId : right.siteId,
+    location: mode === "dates" ? left.location : right.location,
     startTime: mode === "sites" ? left.startTime : right.startTime,
     stopTime: mode === "sites" ? left.stopTime : right.stopTime,
     stepSize: left.stepSize,
     label: mode === "dates" ? "Scenario B · Date 2" : "Scenario B",
   };
 
-  const delta = useMemo(() => {
+  const delta = (() => {
     const a = leftResult?.records[leftIndex];
     const b = rightResult?.records[rightIndex];
-    if (!a || !b) return null;
+    if (!a || !b || isStale(leftResult, left) || isStale(rightResult, rightEffective)) return null;
     const diff = (x: number | null, y: number | null) =>
       x === null || y === null ? null : x - y;
     return {
       sun: diff(a.sun.elevation, b.sun.elevation),
       earth: diff(a.earth.elevation, b.earth.elevation),
     };
-  }, [leftResult, rightResult, leftIndex, rightIndex]);
+  })();
 
   return (
     <div className="flex flex-col gap-4">
@@ -270,6 +277,8 @@ export default function ComparisonView() {
           siteAId={left.siteId}
           siteBId={mode === "dates" ? left.siteId : right.siteId}
           onSelectSite={onGlobeSelect}
+          customA={left.siteId === "custom" ? validLocation(left.location) : undefined}
+          customB={rightEffective.siteId === "custom" ? validLocation(rightEffective.location) : undefined}
           className="h-[420px] md:h-[520px]"
         />
       </section>

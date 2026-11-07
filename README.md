@@ -122,4 +122,13 @@ See [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md) for architecture, features, s
 
 ## AI assistance
 
-This project was built with help from Claude, an AI assistant made by Anthropic, used through Claude Code. Claude reviewed the codebase and suggested enhancements, fixed the horizon-view bug, built the wireframe layout (charts, comparison table, horizon mask), and drafted this README and the project documentation. A person reviewed and tested every change before it was merged.
+This project was built with help from several AI tools, each used for a different part of the work:
+
+| Tool | Made by | Used for |
+| --- | --- | --- |
+| Gemini | Google | Research |
+| Cursor | Anysphere | Base coding |
+| Claude (Claude Code) | Anthropic | Enhancement: reviewed the codebase and suggested enhancements, fixed the horizon-view bug, built the wireframe layout (charts, comparison table, horizon mask), and drafted this README and the project documentation |
+| Codex | OpenAI | Data |
+
+A person reviewed and tested every change before it was merged.

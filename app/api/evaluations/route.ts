@@ -4,6 +4,7 @@ import type { EvaluationRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const revalidate = 21600;
+export const maxDuration = 60;
 
 function parseBody(data: unknown): EvaluationRequest {
   if (!data || typeof data !== "object") {

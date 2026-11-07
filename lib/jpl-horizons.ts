@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { EnvHttpProxyAgent } from "undici";
 import { parseHorizonsDate, normalizeUtcTime } from "./dates";
 import { getSiteById } from "./sites";
 import { customLandingSite } from "./custom-location";
@@ -14,7 +13,6 @@ type Query = { target: CelestialTarget; site: LandingSite; startTime: string; st
 type Export = { text: string; provenance: HorizonsProvenance };
 let queue: Promise<unknown> = Promise.resolve();
 const cache = new Map<string, { expires: number; data: Promise<Export> }>();
-const dispatcher = new EnvHttpProxyAgent();
 
 export class HorizonsError extends Error {
   constructor(message: string, readonly details?: string, readonly status = 502) {
@@ -103,7 +101,7 @@ async function fetchExport(options: Query): Promise<Export> {
   const existing = cache.get(url);
   if (existing && existing.expires > Date.now()) return existing.data;
   const task = async (): Promise<Export> => {
-    const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(30000), ...{ dispatcher } });
+    const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(30000) });
     if (!response.ok) throw new HorizonsError(`Horizons HTTP ${response.status}`);
     const data = await response.json();
     if (data.signature?.source !== "NASA/JPL Horizons API" || typeof data.signature.version !== "string" || typeof data.result !== "string" || data.error) {

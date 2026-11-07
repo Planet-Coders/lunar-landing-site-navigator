@@ -1,43 +1,28 @@
-import { Activity, MoonStar } from "lucide-react";
-import ComparisonView from "@/components/ComparisonView";
+import NavigatorView from "@/components/NavigatorView";
 
 export default function HomePage() {
   return (
-    <main className="mx-auto min-h-screen max-w-[1600px] px-4 py-6 md:px-8">
-      <header className="mb-6 flex flex-col gap-4 border-b border-cyan-300/15 pb-5 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.42em] text-hud-cyan">
-            Mission planning telemetry
-          </p>
-          <h1
-            className="mt-2 text-3xl font-semibold tracking-wide text-white md:text-5xl"
-            style={{ fontFamily: "var(--font-display), Orbitron, sans-serif" }}
-          >
-            LuminaLuna
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm text-cyan-100/70">
-            Lunar landing site &amp; communication evaluator for south-polar power and Earth
-            line-of-sight windows, driven by NASA JPL Horizons observer ephemerides.
-          </p>
-        </div>
-        <div className="hidden items-center gap-4 text-[11px] uppercase tracking-[0.18em] text-cyan-200/70 lg:flex">
-          <span className="inline-flex items-center gap-2">
-            <MoonStar size={16} className="text-hud-amber" /> Center coord@301
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <Activity size={16} className="text-lime-300" /> AIRLESS apparent
-          </span>
-        </div>
-      </header>
-      <ComparisonView />
-      <footer className="mt-8 border-t border-cyan-300/15 pt-4 text-xs text-cyan-100/70">
-        <p className="font-semibold uppercase tracking-[0.2em] text-hud-amber">
-          Geometric visibility only
+    <main className="mx-auto flex min-h-screen max-w-[1600px] flex-col px-4 py-6 md:px-8">
+      <header className="mb-4 flex flex-col gap-1 border-b border-cyan-300/15 pb-4 md:flex-row md:items-end md:justify-between">
+        <h1
+          className="text-2xl font-semibold tracking-wide text-white md:text-4xl"
+          style={{ fontFamily: "var(--font-display), Orbitron, sans-serif" }}
+        >
+          Lunar Landing Site Navigator
+        </h1>
+        <p className="text-xs uppercase tracking-[0.2em] text-cyan-100/70">
+          LuminaLuna · NASA JPL Horizons ephemerides
         </p>
-        <p className="mt-1 max-w-3xl">
-          Sun and Earth visibility is judged from elevation above the local horizontal plane
-          (JPL Horizons, airless). Terrain shadowing, local horizon masks and the size of the
-          solar and Earth discs are not modelled, so real sunlight and line-of-sight can differ.
+      </header>
+      <NavigatorView />
+      <footer className="mt-6 border-t border-cyan-300/15 pt-4 text-center text-xs text-cyan-100/75">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-hud-amber">
+          Geometric Visibility Only
+        </p>
+        <p className="mx-auto mt-1 max-w-3xl">
+          Visibility is judged from Sun and Earth elevation above the local horizontal (JPL
+          Horizons, airless) and the horizon mask you set. Terrain shadowing and the size of the
+          solar and Earth discs are not modelled.
         </p>
       </footer>
     </main>

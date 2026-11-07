@@ -2,7 +2,7 @@
 
 LuminaLuna compares lunar Sun/Earth geometry using the [NASA JPL Horizons API](https://ssd.jpl.nasa.gov/horizons/). It supports NASA LOLA reference points and arbitrary lunar coordinates. It does not assess landing safety, electrical power, or radio-link performance.
 
-You can compare two sites side by side, or one site on two dates. You can scrub through the ephemeris timeline and see the Sun and Earth on an airless lunar horizon. Every site is also plotted on an interactive 3D map of the south pole.
+Pick two sites and a date range, set a horizon mask, and the app charts Sun and Earth elevation for both sites and compares their power and communications windows in a table. Every site is also plotted on an interactive 3D map of the south pole.
 
 ## Features
 
@@ -10,14 +10,16 @@ You can compare two sites side by side, or one site on two dates. You can scrub 
   - **Power:** Sun elevation and whether the site is in daylight.
   - **Comm:** Earth elevation and whether there is line-of-sight or the Earth is occulted.
   - **Windows:** upcoming sunset and earthset.
-- **Comparison modes:** *Site A vs Site B* or *Date 1 vs Date 2*. Timeline scrubbers can be synced, with steps from 1 h to 1 d.
+- **Top bar:** Site A and Site B dropdowns, a date range (UT) with a step size from 1 h to 1 d, and a horizon mask slider from 0° to 10°. Changing a site or the dates re-evaluates automatically.
+- **Horizon mask:** the Sun or Earth only counts as visible above the mask elevation. Moving the slider updates the charts and table instantly without new Horizons queries.
+- **Sun & Earth elevation charts:** both sites on one chart per body, with the 0° line and the mask line. Hovering shows the values at that time on both charts.
+- **Power & Comms window comparison table:** time sunlit, longest sunlit window, longest dark period, first sunset, time Earth visible, longest comms blackout, first Earthset, and time both sunlit and Earth visible. A check marks the better site on each row. Crossing times are interpolated between samples, so windows are not rounded to the step size.
 - **Lunar South Pole Map:** a React Three Fiber globe, oriented with the south pole up.
   - Pins for every landing site. Site A and Site B are highlighted.
   - Clicking a pin assigns that site to the chosen slot (*Click sets Site A / Site B*).
   - The surface uses locally bundled NASA LRO/LROC color and LOLA elevation maps, with source checksums. Lighting is illustrative; these display maps are not used for local visibility calculations.
   - Drag to rotate, scroll to zoom.
-- **3D horizon view:** Sun and Earth directions and apparent disk sizes from Horizons on a reference horizontal plane. Bodies are hidden until valid data is available.
-- **Telemetry HUD:** per-scenario readouts, plus the difference in solar and Earth elevation between scenarios A and B.
+- **Geometric Visibility Only:** a footer reminds users that terrain shadowing and the size of the Sun and Earth discs are not modelled.
 
 ### Candidate sites
 
@@ -77,21 +79,31 @@ app/
   actions.ts                Server action wrapping site evaluation
   api/evaluations/route.ts  REST endpoint
 components/
-  ComparisonView.tsx        Comparison modes, site map panel, A/B scenarios
+  NavigatorView.tsx         Main layout: top bar, map, charts, table
+  ElevationChart.tsx        Sun / Earth elevation chart (SVG)
+  WindowComparisonTable.tsx Power & Comms window comparison table
   LunarGlobe.tsx            Interactive Lunar South Pole Map (R3F globe + pins)
-  Lunar3DCanvas.tsx         Airless horizon view with Sun / Earth
-  ScenarioPane.tsx          Per-scenario site picker, date range, readouts
-  TelemetryHUD.tsx          Power / comm telemetry display
-  TimelineScrubber.tsx      Ephemeris timeline playback
+  ComparisonView.tsx, ScenarioPane.tsx, Lunar3DCanvas.tsx, TelemetryHUD.tsx,
+  TimelineScrubber.tsx      Earlier comparison view, kept but not on the page
 lib/
   jpl-horizons.ts           Horizons query builder, parser, evaluator
   moon-surface.ts           Lunar reference sphere and coordinate conversion
   custom-location.ts       Global LOLA height lookup for custom coordinates
   ephemeris.ts              Az/El and RA/Dec maths, formatting helpers
+  windows.ts                Horizon-mask window maths (sunlit / Earth-visible %, longest gaps)
   sites.ts                  Candidate landing sites
   dates.ts, types.ts        Date parsing and shared types
 ```
 
+## Recent changes
+
+- Fixed the horizon view, which had North and South swapped, plus small fixes (missing-data deltas, out-of-date results notice, control labels). See PR #2.
+- Rebuilt the main page to match the project wireframe: Site A/B, date range and horizon mask across the top, the south pole map on the left, Sun and Earth elevation charts and the Power & Comms comparison table on the right, and a Geometric Visibility Only footer.
+
 ## Data source
 
 See [DATA_SOURCES.md](DATA_SOURCES.md) for datasets, coordinate/height conventions, limitations, refresh instructions and validation. Run `npm test`, `npm run lint` and `npm run build` to validate the code. Tests include archived real NASA Horizons responses; no NASA network access is needed for the unit suite.
+
+## AI assistance
+
+This project was built with help from Claude, an AI assistant made by Anthropic, used through Claude Code. Claude reviewed the codebase and suggested enhancements, fixed the horizon-view bug, built the wireframe layout (charts, comparison table, horizon mask), and drafted this README. A person reviewed and tested every change before it was merged.

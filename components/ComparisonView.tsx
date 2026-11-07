@@ -1,11 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GitCompare, Radar } from "lucide-react";
+import dynamic from "next/dynamic";
+import { GitCompare, MapPin, Radar } from "lucide-react";
 import { defaultWindow } from "@/lib/dates";
 import { LANDING_SITES } from "@/lib/sites";
 import type { ComparisonMode, EvaluationResult } from "@/lib/types";
+import type { SiteSlot } from "./LunarGlobe";
 import ScenarioPane, { type ScenarioConfig } from "./ScenarioPane";
+
+const LunarGlobe = dynamic(() => import("./LunarGlobe"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[420px] items-center justify-center rounded-xl border border-cyan-300/20 bg-[#020205] text-xs uppercase tracking-[0.2em] text-cyan-200/60 md:h-[520px]">
+      Rendering lunar south pole
+    </div>
+  ),
+});
 
 async function fetchEvaluation(config: ScenarioConfig): Promise<EvaluationResult> {
   const response = await fetch("/api/evaluations", {
@@ -51,6 +62,18 @@ export default function ComparisonView() {
   const [leftIndex, setLeftIndex] = useState(0);
   const [rightIndex, setRightIndex] = useState(0);
   const [syncScrub, setSyncScrub] = useState(true);
+  const [pickSlot, setPickSlot] = useState<SiteSlot>("A");
+
+  const onGlobeSelect = useCallback(
+    (siteId: string) => {
+      if (pickSlot === "A" || mode === "dates") {
+        setLeft((prev) => ({ ...prev, siteId }));
+      } else {
+        setRight((prev) => ({ ...prev, siteId }));
+      }
+    },
+    [pickSlot, mode],
+  );
 
   const run = useCallback(async () => {
     setLeftLoading(true);
@@ -182,6 +205,43 @@ export default function ComparisonView() {
           </button>
         </div>
       </div>
+
+      <section className="hud-panel rounded-xl p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.3em] text-cyan-200/60">Site map</p>
+            <h2 className="mt-1 text-sm font-semibold uppercase tracking-[0.18em] text-white">
+              Lunar South Pole Map
+            </h2>
+          </div>
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-cyan-100/70">
+            <MapPin size={14} /> Click sets
+            {(["A", "B"] as const).map((slot) => (
+              <button
+                key={slot}
+                type="button"
+                disabled={slot === "B" && mode === "dates"}
+                onClick={() => setPickSlot(slot)}
+                className={`rounded-md border px-3 py-1.5 disabled:opacity-40 ${
+                  pickSlot === slot
+                    ? slot === "A"
+                      ? "border-hud-cyan bg-cyan-400/10 text-hud-cyan"
+                      : "border-hud-amber bg-amber-400/10 text-hud-amber"
+                    : "border-cyan-300/20 text-cyan-100/60"
+                }`}
+              >
+                Site {slot}
+              </button>
+            ))}
+          </div>
+        </div>
+        <LunarGlobe
+          siteAId={left.siteId}
+          siteBId={mode === "dates" ? left.siteId : right.siteId}
+          onSelectSite={onGlobeSelect}
+          className="h-[420px] md:h-[520px]"
+        />
+      </section>
 
       {delta && (
         <div className="grid grid-cols-2 gap-3 text-xs">

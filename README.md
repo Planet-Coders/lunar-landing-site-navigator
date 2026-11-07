@@ -122,4 +122,11 @@ See [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md) for architecture, features, s
 
 ## AI assistance
 
-This project was built with help from Claude, an AI assistant made by Anthropic, used through Claude Code. Claude reviewed the codebase and suggested enhancements, fixed the horizon-view bug, built the wireframe layout (charts, comparison table, horizon mask), and drafted this README and the project documentation. A person reviewed and tested every change before it was merged.
+## 🤖 AI Tools & Workflow Disclosure
+
+In accordance with NASA Space Apps Challenge guidelines, our team utilized the following AI assistants during our development sprint. All outputs, scientific calculations, and code changes were manually reviewed, verified against NASA JPL Horizons reference data, and tested by a human team member before merging:
+
+* **Google Gemini (Research & Architecture):** Used for challenge requirement analysis, NASA dataset/API discovery, team role allocation, and low-fidelity dashboard wireframing.
+* **OpenAI Codex (Data Engineering):** Assisted with structuring and processing lunar ephemeris datasets (Sun/Earth azimuth and elevation time-series).
+* **Cursor (Base Coding):** Used for initial project scaffolding, 3D Lunar Globe component setup, and rapid frontend prototyping.
+* **Claude via Claude Code (Enhancements, Debugging & Docs):** Reviewed the codebase, resolved the horizon-view bug, implemented the comparison wireframe layout (elevation charts, comparison table, and horizon mask slider), and drafted this README and project documentation.
